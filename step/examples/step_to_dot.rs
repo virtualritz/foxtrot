@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .author("Matt Keeter <matt@formlabs.com>")
         .about("Converts a STEP file to a dot file")
         .arg(Arg::with_name("output")
-            .short("o")
+            .short('o')
             .long("out")
             .help("dot file to target")
             .takes_value(true))
@@ -49,4 +49,3 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     Ok(())
 }
-

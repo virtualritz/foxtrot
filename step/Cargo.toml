@@ -2,18 +2,18 @@
 name = "step"
 version = "0.1.0"
 authors = ["Matt Keeter <matt.j.keeter@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
-arrayvec = "0.7.1"
+arrayvec = "0.7"
 fast-float = "0.2"
-log = "0.4.14"
-memchr = "2.4.0"
-nom = "6.0"
+log = "0.4"
+memchr = "2.7"
+nom = "7"
 rayon = {version = "1.5", optional = true }
 
 [features]
 parallel = ["rayon"]
 
 [dev-dependencies]
-clap = "2.33"
+clap = "3"
