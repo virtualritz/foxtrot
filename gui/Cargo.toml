@@ -2,20 +2,21 @@
 name = "gui"
 version = "0.1.0"
 authors = ["Matt Keeter <matt.j.keeter@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [features]
+default = [ "bundle-shaders" ]
 bundle-shaders = []
 
 [dependencies]
 step = { path = "../step", features = ["parallel"] }
 triangulate = { path = "../triangulate", features = ["parallel"] }
 
-bytemuck = { version = "1.5.1", features = ["derive"] }
-clap = "2.33"
-env_logger = "0.8.3"
-itertools = "0.10.0"
-nalgebra-glm = "0.13.0"
-pollster = "0.2.4"
-wgpu = "0.8.1"
-winit = "0.24.0"
+bytemuck = { version = "1", features = ["derive"] }
+clap = "3"
+env_logger = "0.11"
+itertools = "0.13"
+nalgebra-glm = "0.18.0"
+pollster = "0.3"
+wgpu = "0.9"
+winit = "0.26.0"
