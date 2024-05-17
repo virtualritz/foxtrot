@@ -9,8 +9,8 @@ default = [ "bundle-shaders" ]
 bundle-shaders = []
 
 [dependencies]
-step = { path = "../step", features = ["parallel"] }
-triangulate = { path = "../triangulate", features = ["parallel"] }
+step = { path = "../step" }
+triangulate = { path = "../triangulate" }
 
 bytemuck = { version = "1", features = ["derive"] }
 clap = "3"
