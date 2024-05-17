@@ -4,7 +4,7 @@ use glm::{DMat4, DVec2, DVec3, DVec4};
 use nalgebra_glm as glm;
 
 use crate::{mesh::Vertex, Error};
-use nurbs::{AbstractSurface, NDBSplineSurface, SampledSurface};
+use nurbs::{AbstractSurface, NdBsplineSurface, SampledSurface};
 
 // Represents a surface in 3D space, with a function to project a 3D point
 // on the surface down to a 2D space.
@@ -28,8 +28,8 @@ pub enum Surface {
         mat_i: DMat4,
         angle: f64,
     },
-    BSpline(SampledSurface<3>),
-    NURBS(SampledSurface<4>),
+    Bspline(SampledSurface<3>),
+    Nurbs(SampledSurface<4>),
     Sphere {
         location: DVec3,
         mat: DMat4,   // uv to world
@@ -124,9 +124,9 @@ impl Surface {
         mat
     }
 
-    fn surf_lower<const N: usize>(p: DVec3, surf: &SampledSurface<N>) -> Result<DVec2, Error>
+    fn surface_lower<const N: usize>(p: DVec3, surf: &SampledSurface<N>) -> Result<DVec2, Error>
     where
-        NDBSplineSurface<N>: AbstractSurface,
+        NdBsplineSurface<N>: AbstractSurface,
     {
         surf.uv_from_point(p).ok_or(Error::CouldNotLower)
     }
@@ -203,8 +203,8 @@ impl Surface {
                 };
                 Ok(scale * DVec2::new(x, minor_angle.sin()))
             }
-            Surface::BSpline(surf) => Self::surf_lower(p, surf),
-            Surface::NURBS(surf) => Self::surf_lower(p, surf),
+            Surface::Bspline(surf) => Self::surface_lower(p, surf),
+            Surface::Nurbs(surf) => Self::surface_lower(p, surf),
             Surface::Sphere { mat_i, radius, .. } => {
                 // mat_i is constructed in prepare to be a reasonable basis
                 let p = (mat_i * p_).xyz() / *radius;
@@ -275,7 +275,7 @@ impl Surface {
         }
     }
 
-    pub fn lower_verts(&mut self, verts: &mut [Vertex]) -> Result<Vec<(f64, f64)>, Error> {
+    pub fn lower_vertices(&mut self, verts: &mut [Vertex]) -> Result<Vec<(f64, f64)>, Error> {
         self.prepare(verts);
         let mut pts = Vec::with_capacity(verts.len());
         for v in verts {
@@ -290,8 +290,8 @@ impl Surface {
         // means that positions in 2D (UV) space are closer to positions in 3D
         // space, so the triangulation is better.
         let aspect_ratio = match self {
-            Surface::NURBS(surf) => Some(surf.surf.aspect_ratio()),
-            Surface::BSpline(surf) => Some(surf.surf.aspect_ratio()),
+            Surface::Nurbs(surf) => Some(surf.surf.aspect_ratio()),
+            Surface::Bspline(surf) => Some(surf.surf.aspect_ratio()),
             _ => None,
         };
         if let Some(aspect_ratio) = aspect_ratio {
@@ -323,8 +323,8 @@ impl Surface {
                 let pos = (mat * DVec4::new(pos.x, pos.y, pos.z, 1.0)).xyz();
                 Some(pos)
             }
-            Surface::BSpline(s) => Some(s.surf.point(uv)),
-            Surface::NURBS(s) => Some(s.surf.point(uv)),
+            Surface::Bspline(s) => Some(s.surf.point(uv)),
+            Surface::Nurbs(s) => Some(s.surf.point(uv)),
             Surface::Torus {
                 mat,
                 minor_radius,
@@ -390,12 +390,12 @@ impl Surface {
         }
     }
 
-    fn surf_normal<const N: usize>(uv: DVec2, surf: &SampledSurface<N>) -> DVec3
+    fn surface_normal<const N: usize>(uv: DVec2, surf: &SampledSurface<N>) -> DVec3
     where
-        NDBSplineSurface<N>: AbstractSurface,
+        NdBsplineSurface<N>: AbstractSurface,
     {
         // Calculate first order derivs, then cross them to get normal
-        let derivs = surf.surf.derivs::<1>(uv);
+        let derivs = surf.surf.derivatives::<1>(uv);
         let n = derivs[1][0].cross(&derivs[0][1]);
         n.normalize()
     }
@@ -428,8 +428,8 @@ impl Surface {
                 let norm = DVec3::new(proj.x, proj.y, 0.0).normalize();
                 (mat * norm.to_homogeneous()).xyz()
             }
-            Surface::BSpline(surf) => Self::surf_normal(uv, surf),
-            Surface::NURBS(surf) => Self::surf_normal(uv, surf),
+            Surface::Bspline(surf) => Self::surface_normal(uv, surf),
+            Surface::Nurbs(surf) => Self::surface_normal(uv, surf),
             Surface::Torus {
                 mat,
                 mat_i,

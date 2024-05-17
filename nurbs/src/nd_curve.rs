@@ -3,14 +3,14 @@ use nalgebra_glm::TVec;
 use std::cmp::min;
 
 #[derive(Debug, Clone)]
-pub struct NDBSplineCurve<const D: usize> {
+pub struct NdBsplineCurve<const D: usize> {
     pub open: bool,
     pub knots: KnotVector,
     control_points: Vec<TVec<f64, D>>,
 }
 
-/// Abstract b-spline curve with N-dimensional control points
-impl<const D: usize> NDBSplineCurve<D> {
+/// Abstract b-spline curve with N-dimensional control points.
+impl<const D: usize> NdBsplineCurve<D> {
     pub fn new(open: bool, knots: KnotVector, control_points: Vec<TVec<f64, D>>) -> Self {
         Self {
             open,
@@ -29,12 +29,12 @@ impl<const D: usize> NDBSplineCurve<D> {
     /// Converts a point at position t onto the 3D line, using basis functions
     /// of order `p + 1` respectively.
     ///
-    /// ALGORITHM A3.1
+    /// Algorithm A3.1
     pub fn curve_point(&self, u: f64) -> TVec<f64, D> {
         let p = self.knots.degree();
 
         let span = self.knots.find_span(u);
-        let N = self.knots.basis_funs_for_span(span, u);
+        let N = self.knots.basis_functions_for_span(span, u);
 
         let mut C = TVec::zeros();
         for i in 0..=p {
@@ -46,19 +46,19 @@ impl<const D: usize> NDBSplineCurve<D> {
     /// Computes the derivatives of the curve of order up to and including `d` at location `t`,
     /// using basis functions of order `p + 1` respectively.
     ///
-    /// ALGORITHM A3.2
-    pub fn curve_derivs<const E: usize>(&self, u: f64) -> Vec<TVec<f64, D>> {
+    /// Algorithm A3.2
+    pub fn curve_derivatives<const E: usize>(&self, u: f64) -> Vec<TVec<f64, D>> {
         let p = self.knots.degree();
 
         let du = min(E, p);
 
         let span = self.knots.find_span(u);
-        let N_derivs = self.knots.basis_funs_derivs_for_span(span, u, du);
+        let N_derivatives = self.knots.basis_functions_derivatives_for_span(span, u, du);
 
         let mut CK = vec![TVec::zeros(); E + 1];
         for k in 0..=du {
             for j in 0..=p {
-                CK[k] += N_derivs[k][j] * self.control_points[span - p + j]
+                CK[k] += N_derivatives[k][j] * self.control_points[span - p + j]
             }
         }
         CK
@@ -100,6 +100,7 @@ impl<const D: usize> NDBSplineCurve<D> {
         if u_start > u_end {
             result.reverse();
         }
+
         result
     }
 }

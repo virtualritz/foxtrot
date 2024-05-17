@@ -3,7 +3,7 @@ use nalgebra_glm::{DVec2, DVec3, TVec};
 use std::cmp::min;
 
 #[derive(Debug, Clone)]
-pub struct NDBSplineSurface<const D: usize> {
+pub struct NdBsplineSurface<const D: usize> {
     pub u_open: bool,
     pub v_open: bool,
     pub u_knots: KnotVector,
@@ -11,8 +11,8 @@ pub struct NDBSplineSurface<const D: usize> {
     control_points: Vec<Vec<TVec<f64, D>>>,
 }
 
-/// Non-rational b-spline surface with 3D control points
-impl<const D: usize> NDBSplineSurface<D> {
+/// Non-rational b-spline surface with 3D control points.
+impl<const D: usize> NdBsplineSurface<D> {
     pub fn new(
         u_open: bool,
         v_open: bool,
@@ -45,13 +45,13 @@ impl<const D: usize> NDBSplineSurface<D> {
     /// Converts a point at position uv onto the 3D mesh, using basis functions
     /// of order `p + 1` and `q + 1` respectively.
     ///
-    /// ALGORITHM A3.5
+    /// Algorithm A3.5
     pub fn surface_point(&self, uv: DVec2) -> TVec<f64, D> {
         let uspan = self.u_knots.find_span(uv.x);
-        let Nu = self.u_knots.basis_funs_for_span(uspan, uv.x);
+        let Nu = self.u_knots.basis_functions_for_span(uspan, uv.x);
 
         let vspan = self.v_knots.find_span(uv.y);
-        let Nv = self.v_knots.basis_funs_for_span(vspan, uv.y);
+        let Nv = self.v_knots.basis_functions_for_span(vspan, uv.y);
 
         self.surface_point_from_basis(uspan, &Nu, vspan, &Nv)
     }
@@ -79,14 +79,14 @@ impl<const D: usize> NDBSplineSurface<D> {
         S
     }
 
-    /// Returns all derivatives of the surface.  If `D = surface_derivs()`,
+    /// Returns all derivatives of the surface.  If `D = surface_derivatives()`,
     /// `D[k][l]` is the derivative of the surface `k` times in the `u`
     /// direction and `l` times in the `v` direction.
     ///
     /// We compute derivatives up to and including the `d`'th order derivatives.
     ///
-    /// ALGORITHM A3.6
-    pub fn surface_derivs<const E: usize>(&self, uv: DVec2) -> Vec<Vec<TVec<f64, D>>> {
+    /// Algorithm A3.6
+    pub fn surface_derivatives<const E: usize>(&self, uv: DVec2) -> Vec<Vec<TVec<f64, D>>> {
         let p = self.u_knots.degree();
         let q = self.v_knots.degree();
 
@@ -99,10 +99,10 @@ impl<const D: usize> NDBSplineSurface<D> {
         let mut SKL = vec![vec![TVec::zeros(); E + 1]; E + 1];
 
         let uspan = self.u_knots.find_span(uv.x);
-        let Nu_deriv = self.u_knots.basis_funs_derivs_for_span(uspan, uv.x, du);
+        let Nu_deriv = self.u_knots.basis_functions_derivatives_for_span(uspan, uv.x, du);
 
         let vspan = self.v_knots.find_span(uv.y);
-        let Nv_deriv = self.v_knots.basis_funs_derivs_for_span(vspan, uv.y, dv);
+        let Nv_deriv = self.v_knots.basis_functions_derivatives_for_span(vspan, uv.y, dv);
 
         let mut temp = vec![TVec::zeros(); q + 1];
         for k in 0..=du {
@@ -123,7 +123,7 @@ impl<const D: usize> NDBSplineSurface<D> {
     }
 
     // Computes the relative scale of U and V, based on average distance between
-    // control points in 3D space
+    // control points in 3D space.
     pub fn aspect_ratio(&self) -> f64 {
         let mut u_sum = 0.0;
         let mut v_sum = 0.0;

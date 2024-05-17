@@ -16,7 +16,7 @@ use crate::{
     surface::Surface,
     Error,
 };
-use nurbs::{BSplineSurface, KnotVector, NURBSSurface, SampledCurve, SampledSurface};
+use nurbs::{BsplineSurface, KnotVector, NurbsSurface, SampledCurve, SampledSurface};
 use step::{
     ap214,
     ap214::Entity,
@@ -378,7 +378,7 @@ fn advanced_face(
     stats.num_faces += 1;
 
     // Grab the surface, returning early if it's unimplemented
-    let mut surf = get_surface(s, face.face_geometry)?;
+    let mut surf = surface(s, face.face_geometry)?;
 
     // This is the starting point at which we insert new vertices
     let offset = mesh.verts.len();
@@ -441,7 +441,7 @@ fn advanced_face(
     // _fail_ due to these points, so if that happens, we nuke the point (by
     // assigning it to the first point in the list, which causes it to get
     // deduplicated), then retry.
-    let mut pts = surf.lower_verts(&mut mesh.verts[v_start..])?;
+    let mut pts = surf.lower_vertices(&mut mesh.verts[v_start..])?;
     let bonus_points = pts.len();
     surf.add_steiner_points(&mut pts, &mut mesh.verts);
     let result = std::panic::catch_unwind(|| {
@@ -517,7 +517,7 @@ fn advanced_face(
     Ok(())
 }
 
-fn get_surface(s: &StepFile, surf: ap214::Surface) -> Result<Surface, Error> {
+fn surface(s: &StepFile, surf: ap214::Surface) -> Result<Surface, Error> {
     match &s[surf] {
         Entity::CylindricalSurface(c) => {
             let (location, axis, ref_direction) = axis2_placement_3d(s, c.position);
@@ -587,14 +587,14 @@ fn get_surface(s: &StepFile, surf: ap214::Surface) -> Result<Surface, Error> {
 
             let control_points_list = control_points_2d(s, &b.control_points_list);
 
-            let surf = BSplineSurface::new(
+            let surf = BsplineSurface::new(
                 !b.u_closed.0.unwrap(),
                 !b.v_closed.0.unwrap(),
                 u_knot_vec,
                 v_knot_vec,
                 control_points_list,
             );
-            Ok(Surface::BSpline(SampledSurface::new(surf)))
+            Ok(Surface::Bspline(SampledSurface::new(surf)))
         }
         Entity::ComplexEntity(v) if v.len() == 2 => {
             let bspline = if let Entity::BSplineSurfaceWithKnots(b) = &v[0] {
@@ -646,14 +646,14 @@ fn get_surface(s: &StepFile, surf: ap214::Surface) -> Result<Surface, Error> {
                 })
                 .collect();
 
-            let surf = NURBSSurface::new(
+            let surf = NurbsSurface::new(
                 !bspline.u_closed.0.unwrap(),
                 !bspline.v_closed.0.unwrap(),
                 u_knot_vec,
                 v_knot_vec,
                 control_points_list,
             );
-            Ok(Surface::NURBS(SampledSurface::new(surf)))
+            Ok(Surface::Nurbs(SampledSurface::new(surf)))
         }
         e => {
             warn!("Could not get surface from {:?}", e);
@@ -774,8 +774,8 @@ fn curve(
             );
 
             let curve =
-                nurbs::BSplineCurve::new(!c.closed_curve.0.unwrap(), knot_vec, control_points_list);
-            Curve::BSplineCurveWithKnots(SampledCurve::new(curve))
+                nurbs::BsplineCurve::new(!c.closed_curve.0.unwrap(), knot_vec, control_points_list);
+            Curve::BsplineCurveWithKnots(SampledCurve::new(curve))
         }
         Entity::ComplexEntity(v) if v.len() == 2 => {
             let bspline = if let Entity::BSplineCurveWithKnots(b) = &v[0] {
@@ -808,12 +808,12 @@ fn curve(
                 .map(|(p, w)| DVec4::new(p.x * w, p.y * w, p.z * w, *w))
                 .collect();
 
-            let curve = nurbs::NURBSCurve::new(
+            let curve = nurbs::NurbsCurve::new(
                 !bspline.closed_curve.0.unwrap(),
                 knot_vec,
                 control_points_list,
             );
-            Curve::NURBSCurve(SampledCurve::new(curve))
+            Curve::NurbsCurve(SampledCurve::new(curve))
         }
         Entity::SurfaceCurve(v) => curve(s, edge_curve, v.curve_3d, orientation)?,
         Entity::SeamCurve(v) => curve(s, edge_curve, v.curve_3d, orientation)?,

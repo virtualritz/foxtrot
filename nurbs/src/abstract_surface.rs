@@ -13,5 +13,5 @@ pub trait AbstractSurface {
     /// (used as an optimization when we're re-using basis functions).
     fn point_from_basis(&self, uspan: usize, Nu: &VecF, vspan: usize, Nv: &VecF) -> DVec3;
 
-    fn derivs<const E: usize>(&self, uv: DVec2) -> Vec<Vec<DVec3>>;
+    fn derivatives<const E: usize>(&self, uv: DVec2) -> Vec<Vec<DVec3>>;
 }

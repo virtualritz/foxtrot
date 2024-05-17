@@ -73,13 +73,13 @@ impl KnotVector {
     /// Computes non-vanishing basis functions of order `p + 1` at point `u`.
     ///
     /// Algorithm A2.2
-    pub fn basis_funs(&self, u: f64) -> VecF {
+    pub fn basis_functions(&self, u: f64) -> VecF {
         let i = self.find_span(u);
-        self.basis_funs_for_span(i, u)
+        self.basis_functions_for_span(i, u)
     }
 
-    // Inner implementation of basis_funs
-    pub fn basis_funs_for_span(&self, i: usize, u: f64) -> VecF {
+    // Inner implementation of basis_functions
+    pub fn basis_functions_for_span(&self, i: usize, u: f64) -> VecF {
         let mut N: VecF = smallvec![0.0; self.p + 1];
 
         let mut left: VecF = smallvec![0.0; self.p + 1];
@@ -104,14 +104,14 @@ impl KnotVector {
     ///
     /// Algorithm A2.3
     ///
-    /// If `ders = basis_funs_derivs_()`, `then ders[k][j]` is the `kth` derivative
+    /// If `ders = basis_functions_derivatives_()`, `then ders[k][j]` is the `kth` derivative
     /// of the function `N_{i-p+j, p}` at `u`.
-    pub fn basis_funs_derivs(&self, u: f64, n: usize) -> Vec<Vec<f64>> {
+    pub fn basis_functions_derivatives(&self, u: f64, n: usize) -> Vec<Vec<f64>> {
         let i = self.find_span(u);
-        self.basis_funs_derivs_for_span(i, u, n)
+        self.basis_functions_derivatives_for_span(i, u, n)
     }
 
-    pub fn basis_funs_derivs_for_span(&self, i: usize, u: f64, n: usize) -> Vec<Vec<f64>> {
+    pub fn basis_functions_derivatives_for_span(&self, i: usize, u: f64, n: usize) -> Vec<Vec<f64>> {
         let mut ndu = vec![vec![0.0; self.p + 1]; self.p + 1];
         let mut a = vec![vec![0.0; self.p + 1]; 2];
         let mut left = vec![0.0; self.p + 1];

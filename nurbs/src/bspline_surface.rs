@@ -1,9 +1,9 @@
-use crate::{abstract_surface::AbstractSurface, nd_surface::NDBSplineSurface, VecF};
+use crate::{abstract_surface::AbstractSurface, nd_surface::NdBsplineSurface, VecF};
 use nalgebra_glm::{DVec2, DVec3};
 
-pub type BSplineSurface = NDBSplineSurface<3>;
+pub type BsplineSurface = NdBsplineSurface<3>;
 
-impl AbstractSurface for BSplineSurface {
+impl AbstractSurface for BsplineSurface {
     fn point(&self, uv: DVec2) -> DVec3 {
         self.surface_point(uv)
     }
@@ -12,7 +12,7 @@ impl AbstractSurface for BSplineSurface {
         self.surface_point_from_basis(uspan, Nu, vspan, Nv)
     }
 
-    fn derivs<const E: usize>(&self, uv: DVec2) -> Vec<Vec<DVec3>> {
-        self.surface_derivs::<E>(uv)
+    fn derivatives<const E: usize>(&self, uv: DVec2) -> Vec<Vec<DVec3>> {
+        self.surface_derivatives::<E>(uv)
     }
 }

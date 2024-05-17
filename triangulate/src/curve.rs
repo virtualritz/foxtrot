@@ -2,7 +2,7 @@ use glm::{DMat4, DVec3, DVec4};
 use nalgebra_glm as glm;
 
 use crate::surface::Surface;
-use nurbs::{AbstractCurve, NDBSplineCurve, SampledCurve};
+use nurbs::{AbstractCurve, NdBsplineCurve, SampledCurve};
 
 #[derive(Debug)]
 pub enum Curve {
@@ -14,8 +14,8 @@ pub enum Curve {
         dir: bool,
     },
     Line,
-    BSplineCurveWithKnots(SampledCurve<3>),
-    NURBSCurve(SampledCurve<4>),
+    BsplineCurveWithKnots(SampledCurve<3>),
+    NurbsCurve(SampledCurve<4>),
 }
 
 impl Curve {
@@ -61,7 +61,7 @@ impl Curve {
 
     fn curve_points<const N: usize>(u: DVec3, v: DVec3, curve: &SampledCurve<N>) -> Vec<DVec3>
     where
-        NDBSplineCurve<N>: AbstractCurve,
+        NdBsplineCurve<N>: AbstractCurve,
     {
         let t_start = curve.u_from_point(u);
         let t_end = curve.u_from_point(v);
@@ -74,8 +74,8 @@ impl Curve {
     pub fn build(&self, u: DVec3, v: DVec3) -> Vec<DVec3> {
         match self {
             Self::Line => vec![u, v],
-            Self::BSplineCurveWithKnots(curve) => Self::curve_points(u, v, curve),
-            Self::NURBSCurve(curve) => Self::curve_points(u, v, curve),
+            Self::BsplineCurveWithKnots(curve) => Self::curve_points(u, v, curve),
+            Self::NurbsCurve(curve) => Self::curve_points(u, v, curve),
             Self::Ellipse {
                 eplane_from_world,
                 world_from_eplane,

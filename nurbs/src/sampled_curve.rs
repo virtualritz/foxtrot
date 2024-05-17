@@ -1,17 +1,17 @@
-use crate::{abstract_curve::AbstractCurve, nd_curve::NDBSplineCurve};
+use crate::{abstract_curve::AbstractCurve, nd_curve::NdBsplineCurve};
 use nalgebra_glm::{dot, length, length2, DVec3};
 
 #[derive(Debug)]
 pub struct SampledCurve<const N: usize> {
-    curve: NDBSplineCurve<N>,
+    curve: NdBsplineCurve<N>,
     samples: Vec<(f64, DVec3)>,
 }
 
 impl<const N: usize> SampledCurve<N>
 where
-    NDBSplineCurve<N>: AbstractCurve,
+    NdBsplineCurve<N>: AbstractCurve,
 {
-    pub fn new(curve: NDBSplineCurve<N>) -> Self {
+    pub fn new(curve: NdBsplineCurve<N>) -> Self {
         const N: usize = 8;
         let mut samples = Vec::new();
         for i in 0..curve.knots.len() - 1 {
@@ -39,10 +39,10 @@ where
 
         let mut u_i = u_0;
         loop {
-            let derivs = self.curve.derivs::<2>(u_i);
-            let C = derivs[0];
-            let C_p = derivs[1];
-            let C_pp = derivs[2];
+            let derivatives = self.curve.derivatives::<2>(u_i);
+            let C = derivatives[0];
+            let C_p = derivatives[1];
+            let C_pp = derivatives[2];
             let r = C - P;
 
             // If we are close to the point and close to the right angle, then return

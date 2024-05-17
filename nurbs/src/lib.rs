@@ -1,7 +1,7 @@
-#![allow(non_snake_case)]
 #![allow(clippy::needless_range_loop)]
 // This crate is translations of algorithms from the 70s, which use awkward
 // single-character names everywhere, so we're matching their convention.
+#![allow(non_snake_case)]
 
 mod abstract_curve;
 mod abstract_surface;
@@ -20,12 +20,12 @@ type VecF = SmallVec<[f64; 8]>;
 
 pub use crate::abstract_curve::AbstractCurve;
 pub use crate::abstract_surface::AbstractSurface;
-pub use crate::bspline_curve::BSplineCurve;
-pub use crate::bspline_surface::BSplineSurface;
+pub use crate::bspline_curve::BsplineCurve;
+pub use crate::bspline_surface::BsplineSurface;
 pub use crate::knot_vector::KnotVector;
-pub use crate::nd_curve::NDBSplineCurve;
-pub use crate::nd_surface::NDBSplineSurface;
-pub use crate::nurbs_curve::NURBSCurve;
-pub use crate::nurbs_surface::NURBSSurface;
+pub use crate::nd_curve::NdBsplineCurve;
+pub use crate::nd_surface::NdBsplineSurface;
+pub use crate::nurbs_curve::NurbsCurve;
+pub use crate::nurbs_surface::NurbsSurface;
 pub use crate::sampled_curve::SampledCurve;
 pub use crate::sampled_surface::SampledSurface;

@@ -1,18 +1,18 @@
-use crate::{abstract_surface::AbstractSurface, nd_surface::NDBSplineSurface};
+use crate::{abstract_surface::AbstractSurface, nd_surface::NdBsplineSurface};
 use log::error;
 use nalgebra_glm::{dot, length, length2, DMat2x2, DVec2, DVec3};
 
 #[derive(Debug, Clone)]
 pub struct SampledSurface<const N: usize> {
-    pub surf: NDBSplineSurface<N>,
+    pub surf: NdBsplineSurface<N>,
     samples: Vec<(DVec2, DVec3)>,
 }
 
 impl<const N: usize> SampledSurface<N>
 where
-    NDBSplineSurface<N>: AbstractSurface,
+    NdBsplineSurface<N>: AbstractSurface,
 {
-    pub fn new(surf: NDBSplineSurface<N>) -> Self {
+    pub fn new(surf: NdBsplineSurface<N>) -> Self {
         const N: usize = 8;
         let mut samples = Vec::new();
         for i in 0..surf.u_knots.len() - 1 {
@@ -31,14 +31,14 @@ where
 
                     // Cache the u basis function outside the loop
                     let u_span = surf.u_knots.find_span(u);
-                    let u_basis = surf.u_knots.basis_funs_for_span(u_span, u);
+                    let u_basis = surf.u_knots.basis_functions_for_span(u_span, u);
                     for v in 0..N {
                         let frac = (v as f64) / (N as f64 - 1.0);
                         let v = surf.v_knots[j] * (1.0 - frac) + surf.v_knots[j + 1] * frac;
                         let uv = DVec2::new(u, v);
 
                         let v_span = surf.v_knots.find_span(v);
-                        let v_basis = surf.v_knots.basis_funs_for_span(v_span, v);
+                        let v_basis = surf.v_knots.basis_functions_for_span(v_span, v);
                         let q = surf.point_from_basis(u_span, &u_basis, v_span, &v_basis);
                         samples.push((uv, q));
                     }
@@ -56,13 +56,13 @@ where
         let mut uv_i = uv_0;
         for _ in 0..256 {
             // The surface and its derivatives at uv_i
-            let derivs = self.surf.derivs::<2>(uv_i);
-            let S = derivs[0][0];
-            let S_u = derivs[1][0];
-            let S_v = derivs[0][1];
-            let S_uu = derivs[2][0];
-            let S_uv = derivs[1][1]; // S_vu is the same
-            let S_vv = derivs[0][2];
+            let derivatives = self.surf.derivatives::<2>(uv_i);
+            let S = derivatives[0][0];
+            let S_u = derivatives[1][0];
+            let S_v = derivatives[0][1];
+            let S_uu = derivatives[2][0];
+            let S_uv = derivatives[1][1]; // S_vu is the same
+            let S_vv = derivatives[0][2];
             let r = S - P;
 
             // If |S(uv_i) - P| < \epsilon_1  and
