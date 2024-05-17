@@ -107,7 +107,7 @@ pub enum Error {
 /// into the original points list.  The resulting triangulation has a convex
 /// hull.
 pub fn triangulate_points(pts: &[Point]) -> Result<Vec<(usize, usize, usize)>, Error> {
-    let t = Triangulation::build(&pts)?;
+    let t = Triangulation::build(pts)?;
     Ok(t.triangles().collect())
 }
 
@@ -121,7 +121,7 @@ pub fn triangulate_contours<V>(
 where
     for<'b> &'b V: IntoIterator<Item = &'b usize>,
 {
-    let t = Triangulation::build_from_contours(&pts, contours)?;
+    let t = Triangulation::build_from_contours(pts, contours)?;
     Ok(t.triangles().collect())
 }
 
@@ -135,7 +135,7 @@ pub fn triangulate_with_edges<'a, E>(
 where
     E: IntoIterator<Item = &'a (usize, usize)> + Copy + Clone,
 {
-    let t = Triangulation::build_with_edges(&pts, edges)?;
+    let t = Triangulation::build_with_edges(pts, edges)?;
     Ok(t.triangles().collect())
 }
 

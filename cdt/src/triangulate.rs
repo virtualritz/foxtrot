@@ -158,7 +158,7 @@ impl Triangulation {
             .collect();
 
         // Find the three closest points
-        let arr = min3(&scratch, &points);
+        let arr = min3(&scratch, points);
 
         // Pick out the triangle points, ensuring that they're clockwise
         let pa = arr[0];
@@ -396,7 +396,7 @@ impl Triangulation {
                 }
             }
         }
-        Self::new_with_edges(&pts, &edges)
+        Self::new_with_edges(pts, &edges)
     }
 
     /// Runs the triangulation algorithm until completion
@@ -1166,8 +1166,8 @@ impl Triangulation {
 
     /// Calculates a bounding box, returning `((xmin, xmax), (ymin, ymax))`
     pub(crate) fn bbox(points: &[Point]) -> ((f64, f64), (f64, f64)) {
-        let (mut xmin, mut xmax) = (std::f64::INFINITY, -std::f64::INFINITY);
-        let (mut ymin, mut ymax) = (std::f64::INFINITY, -std::f64::INFINITY);
+        let (mut xmin, mut xmax) = (f64::INFINITY, -f64::INFINITY);
+        let (mut ymin, mut ymax) = (f64::INFINITY, -f64::INFINITY);
         for (px, py) in points.iter() {
             xmin = px.min(xmin);
             ymin = py.min(ymin);
@@ -1313,7 +1313,7 @@ impl Triangulation {
 //
 // This is faster than sorting an entire array each time.
 fn min3(buf: &[(usize, f64)], points: &[(f64, f64)]) -> [usize; 3] {
-    let mut array = [(0, std::f64::INFINITY); 3];
+    let mut array = [(0, f64::INFINITY); 3];
     for &(p, score) in buf.iter() {
         if score < array[0].1 {
             array[0] = (p, score);
@@ -1324,8 +1324,8 @@ fn min3(buf: &[(usize, f64)], points: &[(f64, f64)]) -> [usize; 3] {
             // If there is one point picked already, then don't
             // pick it again, since that will be doomed to be colinear.
             let p0 = points[array[0].0];
-            if (p0.0 - points[p].0).abs() >= std::f64::EPSILON
-                || (p0.1 - points[p].1).abs() >= std::f64::EPSILON
+            if (p0.0 - points[p].0).abs() >= f64::EPSILON
+                || (p0.1 - points[p].1).abs() >= f64::EPSILON
             {
                 array[1] = (p, score);
             }
@@ -1335,7 +1335,7 @@ fn min3(buf: &[(usize, f64)], points: &[(f64, f64)]) -> [usize; 3] {
         if score < array[2].1 {
             let p0 = points[array[0].0];
             let p1 = points[array[1].0];
-            if orient2d(p0, p1, points[p]).abs() > std::f64::EPSILON {
+            if orient2d(p0, p1, points[p]).abs() > f64::EPSILON {
                 array[2] = (p, score);
             }
         }
@@ -1365,7 +1365,7 @@ mod tests {
         let points = vec![(0.0, 0.0), (1.0, 0.0), (1.1, 1.1), (1.1, 1.1), (0.0, 1.0)];
         let edges = vec![(0, 1), (1, 2), (3, 4), (4, 0)];
         let t = Triangulation::build_with_edges(&points, &edges);
-        assert!(!t.is_err());
+        assert!(t.is_ok());
         assert!(t.unwrap().inside((0.5, 0.5)));
     }
 
@@ -1561,7 +1561,7 @@ mod tests {
     fn new_from_contours() {
         let t = Triangulation::build_from_contours::<Vec<usize>>(
             &[(0.0, 0.0), (1.0, 0.0), (1.0, 1.0)],
-            &vec![],
+            &[],
         );
         assert!(t.is_ok());
 

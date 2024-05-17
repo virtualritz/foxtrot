@@ -114,7 +114,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .value_of("font")
         .unwrap_or("/Library/Fonts/Georgia.ttf");
     let font = {
-        let data = std::fs::read(&font_path)?;
+        let data = std::fs::read(font_path)?;
         Font::try_from_vec(data).unwrap()
     };
 
