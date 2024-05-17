@@ -7,18 +7,20 @@ use crate::VecF;
 
 #[derive(Debug, Clone)]
 pub struct KnotVector {
-    /// Knot positions
+    /// Knot positions.
     U: VecF,
 
-    /// Degree of the knot vector
+    /// Degree of the knot vector.
     p: usize,
 }
 
 impl KnotVector {
-    /// Constructs a new knot vector of over
+    /// Constructs a new knot vector.
     pub fn from_multiplicities(p: usize, knots: &[f64], multiplicities: &[usize]) -> Self {
         assert!(knots.len() == multiplicities.len());
-        let U = knots.iter().zip(multiplicities.iter())
+        let U = knots
+            .iter()
+            .zip(multiplicities.iter())
             .flat_map(|(k, m)| std::iter::repeat(*k).take(*m))
             .collect();
         Self { U, p }
@@ -27,7 +29,7 @@ impl KnotVector {
     /// For basis functions of order `p + 1`, finds the span in the knot vector
     /// that is relevant for position `u`.
     ///
-    /// ALGORITHM A2.1
+    /// Algorithm A2.1
     pub fn find_span(&self, u: f64) -> usize {
         // U is [u_0, u_1, ... u_m]
         let m = self.len() - 1;
@@ -58,6 +60,9 @@ impl KnotVector {
     pub fn len(&self) -> usize {
         self.U.len()
     }
+    pub fn is_empty(&self) -> bool {
+        self.U.is_empty()
+    }
     pub fn min_t(&self) -> f64 {
         self[self.p]
     }
@@ -67,7 +72,7 @@ impl KnotVector {
 
     /// Computes non-vanishing basis functions of order `p + 1` at point `u`.
     ///
-    /// ALGORITHM A2.2
+    /// Algorithm A2.2
     pub fn basis_funs(&self, u: f64) -> VecF {
         let i = self.find_span(u);
         self.basis_funs_for_span(i, u)
@@ -97,9 +102,10 @@ impl KnotVector {
     /// Computes the derivatives (up to and including the `nth` derivative) of non-vanishing
     /// basis functions of order `p + 1` at point `u`.
     ///
-    /// ALGORITHM A2.3
-    /// if ders = basis_funs_derivs_(), then ders[k][j] is the `kth` derivative
-    /// of the function `N_{i-p+j, p}` at `u`
+    /// Algorithm A2.3
+    ///
+    /// If `ders = basis_funs_derivs_()`, `then ders[k][j]` is the `kth` derivative
+    /// of the function `N_{i-p+j, p}` at `u`.
     pub fn basis_funs_derivs(&self, u: f64, n: usize) -> Vec<Vec<f64>> {
         let i = self.find_span(u);
         self.basis_funs_derivs_for_span(i, u, n)
@@ -135,9 +141,7 @@ impl KnotVector {
             let mut s2 = 1;
             a[0][0] = 1.0;
             for k in 1..=n {
-                let aus = |i: i32| -> usize {
-                    i.try_into().expect("Could not convert to usize")
-                };
+                let aus = |i: i32| -> usize { i.try_into().expect("Could not convert to usize") };
                 let mut d = 0.0;
                 let rk = (r as i32) - (k as i32);
                 let pk = (self.p as i32) - (k as i32);
@@ -146,7 +150,7 @@ impl KnotVector {
                     d = a[s2][0] * ndu[aus(rk)][aus(pk)];
                 }
                 let j1 = aus(if rk >= -1 { 1 } else { -rk });
-                let j2 = aus(if r as i32 - 1 <= pk as i32 {
+                let j2 = aus(if r as i32 - 1 <= pk {
                     k as i32 - 1
                 } else {
                     self.p as i32 - r as i32
@@ -187,7 +191,7 @@ impl std::ops::Index<usize> for KnotVector {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+
     /*
     #[test]
     fn test_find_span() {

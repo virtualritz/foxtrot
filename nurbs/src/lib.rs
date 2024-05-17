@@ -1,4 +1,5 @@
 #![allow(non_snake_case)]
+#![allow(clippy::needless_range_loop)]
 // This crate is translations of algorithms from the 70s, which use awkward
 // single-character names everywhere, so we're matching their convention.
 
@@ -14,7 +15,7 @@ mod nurbs_surface;
 mod sampled_curve;
 mod sampled_surface;
 
-use smallvec::{SmallVec};
+use smallvec::SmallVec;
 type VecF = SmallVec<[f64; 8]>;
 
 pub use crate::abstract_curve::AbstractCurve;
