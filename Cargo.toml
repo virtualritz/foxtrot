@@ -7,9 +7,9 @@ resolver = "2"
 members = [
     "cdt",
     "express",
-    "step",
     "gui",
     "nurbs",
+    "step",
     "triangulate",
 ]
 exclude = [

@@ -5,12 +5,10 @@ authors = ["Matt Keeter <matt.j.keeter@gmail.com>"]
 edition = "2021"
 
 [features]
-default = [ "bundle-shaders" ]
+default = ["bundle-shaders"]
 bundle-shaders = []
 
 [dependencies]
-step = { path = "../step" }
-triangulate = { path = "../triangulate" }
 
 bytemuck = { version = "1", features = ["derive"] }
 clap = "3"
@@ -18,5 +16,7 @@ env_logger = "0.11"
 itertools = "0.13"
 nalgebra-glm = "0.18.0"
 pollster = "0.3"
+step = { path = "../step" }
+triangulate = { path = "../triangulate" }
 wgpu = "0.9"
 winit = "0.26.0"

@@ -6,16 +6,16 @@ edition = "2021"
 
 [dependencies]
 cdt = { path = "../cdt" }
-nurbs = { path = "../nurbs" }
-step = { path = "../step" }
 
 log = "0.4"
 nalgebra-glm = "0.18"
+nurbs = { path = "../nurbs" }
 rayon = { version = "1.10", optional = true }
+step = { path = "../step" }
 thiserror = "1.0"
 
 [features]
-default = [ "rayon" ]
+default = ["rayon"]
 rayon = ["dep:rayon", "step/rayon"]
 
 [dev-dependencies]
