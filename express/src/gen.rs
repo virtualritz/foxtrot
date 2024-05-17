@@ -33,7 +33,7 @@ impl<'a> TypeMap<'a> {
         self.to_rtype(s)
     }
     fn is_entity(&self, s: &str) -> bool {
-        let t = self.0.get(s).expect(&format!("Could not get {:?}", s));
+        let t = self.0.get(s).unwrap_or_else(|| panic!("Could not get {:?}", s));
         match &t {
             Type::Entity { .. } => true,
             Type::Select(v) => v.iter().all(|s| self.is_entity(s)),
@@ -41,7 +41,7 @@ impl<'a> TypeMap<'a> {
         }
     }
     fn to_rtype(&self, s: &str) -> String {
-        let t = self.0.get(s).expect(&format!("Could not get {:?}", s));
+        let t = self.0.get(s).unwrap_or_else(|| panic!("Could not get {:?}", s));
         match &t {
             Type::Entity { .. }
             | Type::Redeclared(_)
@@ -90,7 +90,7 @@ impl<'a> TypeMap<'a> {
         if !self.0.contains_key(s) {
             self.build(s);
         }
-        let t = self.0.get(s).expect(&format!("Could not get {:?}", s));
+        let t = self.0.get(s).unwrap_or_else(|| panic!("Could not get {:?}", s));
         if let Type::Entity { attrs, .. } = &t {
             attrs.clone()
         } else {
@@ -367,7 +367,7 @@ impl<'a> HasId for {0}<'a> {{
 "#,
                     camel_name,
                     type_map.to_inner_rtype(self),
-                    type_map.to_inner_rtype(&*type_)
+                    type_map.to_inner_rtype(type_)
                 )?;
             }
 
@@ -423,7 +423,7 @@ impl<'a> ParseFromChunks<'a> for {0}_<'a> {{
                 writeln!(
                     buf,
                     r#"        let (s, _) = tag("{}(")(strs[0])?;"#,
-                    capitalize(&name)
+                    capitalize(name)
                 )?;
                 // Then, write a series of parsers which build the whole struct
                 for (i, a) in attrs.iter().enumerate() {
@@ -746,11 +746,8 @@ impl<'a> Declaration<'a> {
 }
 impl<'a> TypeDecl<'a> {
     fn disambiguate(&mut self, entity_names: &HashSet<&str>) {
-        match &mut self.underlying_type {
-            UnderlyingType::Constructed(c) => {
-                c.disambiguate(entity_names);
-            }
-            _ => (),
+        if let UnderlyingType::Constructed(c) = &mut self.underlying_type {
+            c.disambiguate(entity_names);
         }
     }
 }
@@ -781,7 +778,7 @@ impl<'a> SimpleExpression<'a> {
             return None;
         }
         let factor = &term.0;
-        if !factor.1.is_none() {
+        if factor.1.is_some() {
             return None;
         }
         let simple_factor = &factor.0;
@@ -1061,10 +1058,7 @@ impl<'a> SimpleTypes<'a> {
 }
 impl<'a> ConstructedTypes<'a> {
     fn disambiguate(&mut self, entity_names: &HashSet<&str>) {
-        match self {
-            ConstructedTypes::Select(e) => e.disambiguate(entity_names),
-            _ => (),
-        }
+        if let ConstructedTypes::Select(e) = self { e.disambiguate(entity_names) }
     }
 }
 impl<'a> SelectType<'a> {

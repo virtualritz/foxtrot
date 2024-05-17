@@ -2929,7 +2929,7 @@ where
 end_entity; "#,
         )
         .unwrap();
-        assert!(e.0 == "");
+        assert!(e.0.is_empty());
 
         let e = entity_decl(
             r#"entity advanced_face
