@@ -16,7 +16,7 @@ impl<'a> StepFile<'a> {
     /// Parses a STEP file from a raw array of bytes
     /// `data` must be preprocessed by [`strip_flatten`] first
     pub fn parse(data: &'a [u8]) -> Self {
-        let blocks = Self::into_blocks(&data);
+        let blocks = Self::into_blocks(data);
         let data_start = blocks.iter()
             .position(|b| b == b"DATA;")
             .unwrap_or(0) + 1;
@@ -37,12 +37,12 @@ impl<'a> StepFile<'a> {
         };
 
         let parsed: Vec<(usize, Entity)> = block_iter
-            .filter_map(|b| parse_entity_decl(*b)
+            .filter_map(|b| parse_entity_decl(b)
                 .or_else(|e| {
                     warn!("Failed to parse {}: {:?}",
                         std::str::from_utf8(b).unwrap_or("[INVALID UTF-8]"),
                               e);
-                    parse_entity_fallback(*b)
+                    parse_entity_fallback(b)
                 })
                 .ok())
             .map(|b| b.1)

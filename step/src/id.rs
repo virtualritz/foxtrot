@@ -19,7 +19,7 @@ unsafe impl<T> Sync for Id<T> {}
 unsafe impl<T> Send for Id<T> {}
 impl <T> Clone for Id<T> {
     fn clone(&self) -> Self {
-        Self::new(self.0)
+        *self
     }
 }
 impl <T> Copy for Id<T> {}

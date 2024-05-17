@@ -30878,10 +30878,7 @@ impl<'a> Parse<'a> for SourceItem<'a> {
 }
 impl<'a> HasId for SourceItem<'a> {
     fn append_ids(&self, _v: &mut Vec<usize>) {
-        match self {
-            SourceItem::Identifier(c) => c.append_ids(_v),
-            _ => (),
-        }
+        if let SourceItem::Identifier(c) = self { c.append_ids(_v) }
     }
 }
 #[derive(Debug)]

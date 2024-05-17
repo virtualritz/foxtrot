@@ -18,12 +18,12 @@ use crate::{id::{Id, HasId}, ap214::{Entity, superclasses_of}};
 pub type IResult<'a, U> = nom::IResult<&'a str, U, Error<&'a str>>;
 
 /// Helper function to generate a `nom` error result
-fn nom_err<'a, U>(s: &'a str, kind: nom::error::ErrorKind) -> IResult<'a, U> {
+fn nom_err<U>(s: &str, kind: nom::error::ErrorKind) -> IResult<'_, U> {
     Err(nom::Err::Error(Error::new(s, kind)))
 }
 
 /// Helper function to generate a `nom` error result with the `Alt` tag
-pub fn nom_alt_err<'a, U>(s: &'a str) -> IResult<'a, U> {
+pub fn nom_alt_err<U>(s: &str) -> IResult<'_, U> {
     nom_err(s, ErrorKind::Alt)
 }
 
@@ -275,8 +275,7 @@ pub(crate) fn parse_complex_mapping(s: &str) -> IResult<Entity> {
     }
     // Filter out the list of subclasses to those which aren't a parent of
     // another item in the set; these are our potential leafs.
-    let mut potential_leafs: HashSet<&str> = subentities.keys()
-        .map(|i| *i)
+    let mut potential_leafs: HashSet<&str> = subentities.keys().copied()
         .collect();
     for k in subentities.keys() {
         for sup in superclasses_of(k) {
@@ -285,7 +284,7 @@ pub(crate) fn parse_complex_mapping(s: &str) -> IResult<Entity> {
     }
     // Eliminate any leaf with no arguments, since they're just addding
     // bonus constraints (which we don't handle anyways)
-    potential_leafs.retain(|k| subentities[k] != "");
+    potential_leafs.retain(|k| !subentities[k].is_empty());
 
     // Sort potential leafs so that ComplexEntity is deterministic and we can
     // match against it later
@@ -310,7 +309,7 @@ pub(crate) fn parse_complex_mapping(s: &str) -> IResult<Entity> {
         for c in chain.iter().rev() {
             if !subentities[c].is_empty() {
                 new_decl.push(subentities[c]);
-                new_decl.push(if *c == leaf { &")" } else { &"," });
+                new_decl.push(if *c == leaf { ")" } else { "," });
             }
         }
         leaf_entities.push(Entity::parse_chunks(&new_decl)?.1)
