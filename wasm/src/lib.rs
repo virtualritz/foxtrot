@@ -1,3 +1,4 @@
+use log::Level;
 /// Takes a STEP file (as an array of bytes), and returns a triangle mesh.
 ///
 /// Vertices are packed into rows of 9 floats, representing
@@ -8,7 +9,6 @@
 /// Vertices are rows of three indexes into the triangle array
 ///
 use wasm_bindgen::prelude::*;
-use log::{Level};
 
 #[wasm_bindgen]
 pub fn init_log() {
@@ -24,9 +24,9 @@ pub fn step_to_triangle_buf(data: String) -> Vec<f32> {
     let step = StepFile::parse(&flat);
     let (mut mesh, _stats) = triangulate(&step);
 
-    let (mut xmin, mut xmax) = (std::f64::INFINITY, -std::f64::INFINITY);
-    let (mut ymin, mut ymax) = (std::f64::INFINITY, -std::f64::INFINITY);
-    let (mut zmin, mut zmax) = (std::f64::INFINITY, -std::f64::INFINITY);
+    let (mut xmin, mut xmax) = (f64::INFINITY, -f64::INFINITY);
+    let (mut ymin, mut ymax) = (f64::INFINITY, -f64::INFINITY);
+    let (mut zmin, mut zmax) = (f64::INFINITY, -f64::INFINITY);
     for pos in mesh.verts.iter().map(|p| p.pos) {
         xmin = xmin.min(pos.x);
         xmax = xmax.max(pos.x);
@@ -45,7 +45,8 @@ pub fn step_to_triangle_buf(data: String) -> Vec<f32> {
         pos.z = (pos.z - zc) / scale * 200.0;
     }
 
-    mesh.triangles.iter()
+    mesh.triangles
+        .iter()
         .flat_map(|v| v.verts.iter())
         .map(|p| &mesh.verts[*p as usize])
         .flat_map(|v| v.pos.iter().chain(&v.norm).chain(&v.color))
