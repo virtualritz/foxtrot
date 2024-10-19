@@ -1578,4 +1578,31 @@ mod tests {
             assert!(e == Error::OpenContour);
         }
     }
+    
+    #[test]
+    fn problematic_hull_case() {
+        // This set of points triggered an error in the Hull, causing the data
+        // structure to become malformed.
+        let pts = [
+            (-4.3, -2.0900000000000003),
+            (-6.8, -2.09),
+            (-11.1, -2.09),
+        ];
+        let t = Triangulation::build(&pts).expect("Could not construct");
+        t.check();
+    }
+
+    #[test]
+    fn problematic_cdt_case() {
+        // This set of points triggers an assertion in the triangulator,
+        // possibly related to overlapping edges
+        let pts = [
+            (-4.3, -2.0900000000000003),
+            (-6.8, -2.09),
+            (-11.099999999999998, -2.09),
+            (0.0, 0.0),
+        ];
+        let t = Triangulation::build(&pts).expect("Could not construct");
+        t.check();
+    }
 }
