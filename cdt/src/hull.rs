@@ -1,4 +1,4 @@
-use crate::indexes::{EdgeIndex, HullIndex, HullVec, PointIndex, PointVec, EMPTY_HULL};
+use crate::indexes::{EMPTY_HULL, EdgeIndex, HullIndex, HullVec, PointIndex, PointVec};
 
 const N: usize = 1 << 10;
 

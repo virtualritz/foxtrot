@@ -35,16 +35,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("parsed in {:?}", since_the_epoch);
 
     let start = SystemTime::now();
-    let gen = express::gen::gen(&mut parsed.1)?;
+    let r#gen = express::r#gen::r#gen(&mut parsed.1)?;
     let end = SystemTime::now();
     let since_the_epoch = end.duration_since(start).expect("Time went backwards");
     eprintln!("generated in {:?}", since_the_epoch);
 
     match matches.value_of("output") {
-        Some(o) => std::fs::write(o, gen)?,
+        Some(o) => std::fs::write(o, r#gen)?,
         None => {
             if !matches.is_present("quiet") {
-                println!("{}", gen)
+                println!("{}", r#gen)
             }
         }
     }

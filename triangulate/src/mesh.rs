@@ -37,14 +37,14 @@ impl Mesh {
         let u: u32 = self.triangles.len().try_into().expect("Too many triangles");
         out.extend(&u.to_le_bytes());
         for t in self.triangles.iter() {
-            out.extend(std::iter::repeat(0).take(12)); // normal
+            out.extend(std::iter::repeat_n(0, 12)); // normal
             for v in t.verts.iter() {
                 let v = self.verts[*v as usize];
                 out.extend(&(v.pos.x as f32).to_le_bytes());
                 out.extend(&(v.pos.y as f32).to_le_bytes());
                 out.extend(&(v.pos.z as f32).to_le_bytes());
             }
-            out.extend(std::iter::repeat(0).take(2)); // attributes
+            out.extend(std::iter::repeat_n(0, 2)); // attributes
         }
         std::fs::write(filename, out)
     }

@@ -49,19 +49,19 @@ impl Model {
         let vertex_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex buffer"),
             contents: bytemuck::cast_slice(&vertex_data),
-            usage: wgpu::BufferUsage::VERTEX,
+            usage: wgpu::BufferUsages::VERTEX,
         });
 
         let index_buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Index buffer"),
             contents: bytemuck::cast_slice(&index_data),
-            usage: wgpu::BufferUsage::INDEX,
+            usage: wgpu::BufferUsages::INDEX,
         });
 
         let uniform_buf = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Uniform Buffer"),
             size: std::mem::size_of::<Mat4>() as wgpu::BufferAddress * 2,
-            usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
@@ -69,7 +69,7 @@ impl Model {
             label: None,
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
-                visibility: wgpu::ShaderStage::VERTEX,
+                visibility: wgpu::ShaderStages::VERTEX,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,
@@ -88,7 +88,7 @@ impl Model {
 
         let vertex_buf_layout = wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<GPUVertex>() as wgpu::BufferAddress,
-            step_mode: wgpu::InputStepMode::Vertex,
+            step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
                 // Positions
                 wgpu::VertexAttribute {
@@ -131,10 +131,9 @@ impl Model {
                 .expect("Shader is invalid UTF-8"),
         );
 
-        let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: None,
             source: wgpu::ShaderSource::Wgsl(model_src),
-            flags: wgpu::ShaderFlags::all(),
         });
 
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -142,13 +141,15 @@ impl Model {
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
-                entry_point: "vs_main",
+                entry_point: Some("vs_main"),
                 buffers: &[vertex_buf_layout],
+                compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
-                entry_point: "fs_main",
-                targets: &[swapchain_format.into()],
+                entry_point: Some("fs_main"),
+                targets: &[Some(swapchain_format.into())],
+                compilation_options: Default::default(),
             }),
             primitive: wgpu::PrimitiveState::default(),
             depth_stencil: Some(wgpu::DepthStencilState {
@@ -159,6 +160,8 @@ impl Model {
                 bias: wgpu::DepthBiasState::default(),
             }),
             multisample: wgpu::MultisampleState::default(),
+            multiview: None,
+            cache: None,
         });
 
         Model {
@@ -175,7 +178,7 @@ impl Model {
         &self,
         camera: &Camera,
         queue: &wgpu::Queue,
-        frame: &wgpu::SwapChainTexture,
+        frame: &wgpu::TextureView,
         depth_view: &wgpu::TextureView,
         encoder: &mut wgpu::CommandEncoder,
     ) {
@@ -195,22 +198,25 @@ impl Model {
 
         let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
-            color_attachments: &[wgpu::RenderPassColorAttachment {
-                view: &frame.view,
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: frame,
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Load,
-                    store: true,
+                    store: wgpu::StoreOp::Store,
                 },
-            }],
+                depth_slice: None,
+            })],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                 view: depth_view,
                 depth_ops: Some(wgpu::Operations {
                     load: wgpu::LoadOp::Load,
-                    store: true,
+                    store: wgpu::StoreOp::Store,
                 }),
                 stencil_ops: None,
             }),
+            occlusion_query_set: None,
+            timestamp_writes: None,
         });
         rpass.set_pipeline(&self.render_pipeline);
         rpass.set_index_buffer(self.index_buf.slice(..), wgpu::IndexFormat::Uint32);

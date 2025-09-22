@@ -1,4 +1,4 @@
-use crate::indexes::{EdgeIndex, EdgeVec, PointIndex, EMPTY_EDGE};
+use crate::indexes::{EMPTY_EDGE, EdgeIndex, EdgeVec, PointIndex};
 
 /// Represents a directed edge in a triangle graph.
 #[derive(Copy, Clone, Debug)]
@@ -149,11 +149,10 @@ impl Half {
     }
 
     pub fn iter_edges(&self) -> impl Iterator<Item = (PointIndex, PointIndex, bool)> + '_ {
-        return self
-            .edges
+        self.edges
             .iter()
             .filter(|e| e.next != EMPTY_EDGE)
-            .map(|e| (e.src, e.dst, e.fixed()));
+            .map(|e| (e.src, e.dst, e.fixed()))
     }
 
     pub fn iter_triangles(

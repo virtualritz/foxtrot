@@ -18,10 +18,9 @@ impl Backdrop {
             .expect("Shader is invalid UTF-8"),
         );
 
-        let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: None,
             source: wgpu::ShaderSource::Wgsl(backdrop_src),
-            flags: wgpu::ShaderFlags::all(),
         });
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -35,13 +34,15 @@ impl Backdrop {
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
-                entry_point: "vs_main",
+                entry_point: Some("vs_main"),
                 buffers: &[],
+                compilation_options: Default::default(),
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
-                entry_point: "fs_main",
-                targets: &[swapchain_format.into()],
+                entry_point: Some("fs_main"),
+                targets: &[Some(swapchain_format.into())],
+                compilation_options: Default::default(),
             }),
             primitive: wgpu::PrimitiveState::default(),
             depth_stencil: Some(wgpu::DepthStencilState {
@@ -52,6 +53,8 @@ impl Backdrop {
                 bias: wgpu::DepthBiasState::default(),
             }),
             multisample: wgpu::MultisampleState::default(),
+            multiview: None,
+            cache: None,
         });
 
         Backdrop { render_pipeline }
@@ -59,28 +62,31 @@ impl Backdrop {
 
     pub fn draw(
         &self,
-        frame: &wgpu::SwapChainTexture,
+        frame: &wgpu::TextureView,
         depth_view: &wgpu::TextureView,
         encoder: &mut wgpu::CommandEncoder,
     ) {
         let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
-            color_attachments: &[wgpu::RenderPassColorAttachment {
-                view: &frame.view,
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: frame,
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
-                    store: true,
+                    store: wgpu::StoreOp::Store,
                 },
-            }],
+                depth_slice: None,
+            })],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                 view: depth_view,
                 depth_ops: Some(wgpu::Operations {
                     load: wgpu::LoadOp::Clear(0.0),
-                    store: true,
+                    store: wgpu::StoreOp::Store,
                 }),
                 stencil_ops: None,
             }),
+            occlusion_query_set: None,
+            timestamp_writes: None,
         });
         rpass.set_pipeline(&self.render_pipeline);
         rpass.draw(0..6, 0..1);

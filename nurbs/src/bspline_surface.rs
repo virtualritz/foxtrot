@@ -1,4 +1,4 @@
-use crate::{abstract_surface::AbstractSurface, nd_surface::NdBsplineSurface, VecF};
+use crate::{VecF, abstract_surface::AbstractSurface, nd_surface::NdBsplineSurface};
 use nalgebra_glm::{DVec2, DVec3};
 
 pub type BsplineSurface = NdBsplineSurface<3>;

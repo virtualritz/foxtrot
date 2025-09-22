@@ -1,10 +1,10 @@
 use crate::{
+    Error, Point,
     contour::{Contour, ContourData},
     half::Half,
     hull::Hull,
-    indexes::{EdgeIndex, HullIndex, PointIndex, PointVec, EMPTY_EDGE},
+    indexes::{EMPTY_EDGE, EdgeIndex, HullIndex, PointIndex, PointVec},
     predicates::{acute, centroid, distance2, in_circle, orient2d, pseudo_angle},
-    Error, Point,
 };
 
 #[derive(Debug)]
@@ -313,11 +313,7 @@ impl Triangulation {
                 assert!(src != PointIndex::empty());
                 assert!(dst != PointIndex::empty());
 
-                if src > dst {
-                    (dst, src)
-                } else {
-                    (src, dst)
-                }
+                if src > dst { (dst, src) } else { (src, dst) }
             })
         };
         for (src, dst) in edge_iter() {
@@ -390,10 +386,10 @@ impl Triangulation {
             for (a, b) in c.into_iter().zip(c.into_iter().skip(1)) {
                 edges.push((*a, *b));
             }
-            if let Some(start) = edges.get(next) {
-                if start.0 != edges.last().unwrap().1 {
-                    return Err(Error::OpenContour);
-                }
+            if let Some(start) = edges.get(next)
+                && start.0 != edges.last().unwrap().1
+            {
+                return Err(Error::OpenContour);
             }
         }
         Self::new_with_edges(pts, &edges)

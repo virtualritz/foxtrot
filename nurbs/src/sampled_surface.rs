@@ -1,6 +1,6 @@
 use crate::{abstract_surface::AbstractSurface, nd_surface::NdBsplineSurface};
 use log::error;
-use nalgebra_glm::{dot, length, length2, DMat2x2, DVec2, DVec3};
+use nalgebra_glm::{DMat2x2, DVec2, DVec3, dot, length, length2};
 
 #[derive(Debug, Clone)]
 pub struct SampledSurface<const N: usize> {

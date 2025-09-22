@@ -1,6 +1,3 @@
-[profile.release]
-debug = true
-codegen-units = 1
 
 [workspace]
 resolver = "2"
@@ -12,6 +9,7 @@ members = [
     "step",
     "triangulate",
 ]
-exclude = [
-    "wasm",
-]
+exclude = ["wasm"]
+[profile.release]
+debug = true
+codegen-units = 1

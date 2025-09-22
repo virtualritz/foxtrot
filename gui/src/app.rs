@@ -2,21 +2,20 @@ use glm::Vec2;
 use nalgebra_glm as glm;
 use winit::{
     dpi::PhysicalSize,
-    event::{
-        DeviceEvent, ElementState, ModifiersState, MouseScrollDelta, VirtualKeyCode, WindowEvent,
-    },
+    event::{DeviceEvent, ElementState, MouseScrollDelta, WindowEvent},
+    keyboard::{Key, ModifiersState},
 };
 
 use crate::{backdrop::Backdrop, camera::Camera, model::Model};
 use triangulate::mesh::Mesh;
 
-pub struct App {
+pub struct App<'a> {
     start_time: std::time::SystemTime,
 
-    surface: wgpu::Surface,
+    surface: wgpu::Surface<'a>,
     device: wgpu::Device,
-    swapchain_format: wgpu::TextureFormat,
-    swapchain: wgpu::SwapChain,
+    queue: wgpu::Queue,
+    config: wgpu::SurfaceConfiguration,
 
     loader: Option<std::thread::JoinHandle<Mesh>>,
     model: Option<Model>,
@@ -37,35 +36,51 @@ pub enum Reply {
     Quit,
 }
 
-impl App {
+impl<'a> App<'a> {
     pub fn new(
         start_time: std::time::SystemTime,
         size: PhysicalSize<u32>,
         adapter: wgpu::Adapter,
-        surface: wgpu::Surface,
+        surface: wgpu::Surface<'a>,
         device: wgpu::Device,
+        queue: wgpu::Queue,
         loader: std::thread::JoinHandle<Mesh>,
     ) -> Self {
-        let swapchain_format = adapter
-            .get_swap_chain_preferred_format(&surface)
-            .expect("Could not get swapchain format");
+        let surface_caps = surface.get_capabilities(&adapter);
+        let surface_format = surface_caps
+            .formats
+            .iter()
+            .find(|f| f.is_srgb())
+            .copied()
+            .unwrap_or(surface_caps.formats[0]);
 
-        let swapchain = Self::rebuild_swapchain_(size, swapchain_format, &surface, &device);
+        let config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format: surface_format,
+            width: size.width,
+            height: size.height,
+            present_mode: wgpu::PresentMode::Fifo,
+            alpha_mode: surface_caps.alpha_modes[0],
+            view_formats: vec![],
+            desired_maximum_frame_latency: 2,
+        };
+        surface.configure(&device, &config);
+
         let depth = Self::rebuild_depth_(size, &device);
-        let backdrop = Backdrop::new(&device, swapchain_format);
+        let backdrop = Backdrop::new(&device, surface_format);
 
         Self {
             start_time,
 
-            swapchain,
             depth,
             backdrop,
-            swapchain_format,
+            config,
             loader: Some(loader),
             model: None,
             camera: Camera::new(size.width as f32, size.height as f32),
             surface,
             device,
+            queue,
             size,
 
             modifiers: ModifiersState::empty(),
@@ -89,17 +104,17 @@ impl App {
                 self.resize(size);
                 Reply::Redraw
             }
-            WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                self.resize(*new_inner_size);
-                Reply::Redraw
+            WindowEvent::ScaleFactorChanged { .. } => {
+                // Scale factor changes don't directly affect the size anymore in winit 0.30
+                Reply::Continue
             }
             WindowEvent::CloseRequested => Reply::Quit,
             WindowEvent::ModifiersChanged(m) => {
-                self.modifiers = m;
+                self.modifiers = m.state();
                 Reply::Continue
             }
-            WindowEvent::KeyboardInput { input, .. } => {
-                if self.modifiers.logo() && input.virtual_keycode == Some(VirtualKeyCode::Q) {
+            WindowEvent::KeyboardInput { event, .. } => {
+                if self.modifiers.super_key() && event.logical_key == Key::Character("q".into()) {
                     Reply::Quit
                 } else {
                     Reply::Continue
@@ -129,11 +144,14 @@ impl App {
     }
 
     fn resize(&mut self, size: PhysicalSize<u32>) {
-        self.size = size;
-        self.swapchain =
-            Self::rebuild_swapchain_(size, self.swapchain_format, &self.surface, &self.device);
-        self.depth = Self::rebuild_depth_(size, &self.device);
-        self.camera.set_size(size.width as f32, size.height as f32);
+        if size.width > 0 && size.height > 0 {
+            self.size = size;
+            self.config.width = size.width;
+            self.config.height = size.height;
+            self.surface.configure(&self.device, &self.config);
+            self.depth = Self::rebuild_depth_(size, &self.device);
+            self.camera.set_size(size.width as f32, size.height as f32);
+        }
     }
 
     fn rebuild_depth_(
@@ -152,47 +170,41 @@ impl App {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Depth32Float,
-            usage: wgpu::TextureUsage::RENDER_ATTACHMENT | wgpu::TextureUsage::SAMPLED,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
         };
         let tex = device.create_texture(&desc);
         let view = tex.create_view(&wgpu::TextureViewDescriptor::default());
         (tex, view)
     }
 
-    fn rebuild_swapchain_(
-        size: PhysicalSize<u32>,
-        format: wgpu::TextureFormat,
-        surface: &wgpu::Surface,
-        device: &wgpu::Device,
-    ) -> wgpu::SwapChain {
-        let sc_desc = wgpu::SwapChainDescriptor {
-            usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
-            format,
-            width: size.width,
-            height: size.height,
-            present_mode: wgpu::PresentMode::Mailbox,
-        };
-        device.create_swap_chain(surface, &sc_desc)
-    }
-
     // Redraw the GUI, returning true if the model was not drawn (which means
     // that the parent loop should keep calling redraw to force model load)
-    pub fn redraw(&mut self, queue: &wgpu::Queue) -> bool {
-        let frame = self
-            .swapchain
-            .get_current_frame()
-            .expect("Failed to acquire next swap chain texture")
-            .output;
+    pub fn redraw(&mut self) -> bool {
+        let output = self
+            .surface
+            .get_current_texture()
+            .expect("Failed to acquire next surface texture");
+        let view = output
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
 
-        self.backdrop.draw(&frame, &self.depth.1, &mut encoder);
+        self.backdrop.draw(&view, &self.depth.1, &mut encoder);
         if let Some(model) = &self.model {
-            model.draw(&self.camera, queue, &frame, &self.depth.1, &mut encoder);
+            model.draw(
+                &self.camera,
+                &self.queue,
+                &view,
+                &self.depth.1,
+                &mut encoder,
+            );
         }
         let drew_model = self.model.is_some();
-        queue.submit(Some(encoder.finish()));
+        self.queue.submit(Some(encoder.finish()));
+        output.present();
 
         if drew_model && self.first_frame {
             let end = std::time::SystemTime::now();
@@ -205,7 +217,6 @@ impl App {
         // until after a queue is submitted, so we don't wait to wait for
         // the model until the _second_ frame.
         if !self.first_frame && self.model.is_none() {
-            println!("Waiting for mesh");
             let mesh = self
                 .loader
                 .take()
@@ -214,7 +225,7 @@ impl App {
                 .expect("Failed to load mesh");
             let model = Model::new(
                 &self.device,
-                self.swapchain_format,
+                self.config.format,
                 &mesh.verts,
                 &mesh.triangles,
             );

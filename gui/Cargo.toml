@@ -2,7 +2,7 @@
 name = "gui"
 version = "0.1.0"
 authors = ["Matt Keeter <matt.j.keeter@gmail.com>"]
-edition = "2021"
+edition = "2024"
 
 [features]
 default = ["bundle-shaders"]
@@ -13,10 +13,10 @@ bundle-shaders = []
 bytemuck = { version = "1", features = ["derive"] }
 clap = "3"
 env_logger = "0.11"
-itertools = "0.13"
-nalgebra-glm = "0.18.0"
-pollster = "0.3"
+itertools = "0.14"
+nalgebra-glm = "0.20"
+pollster = "0.4"
 step = { path = "../step" }
 triangulate = { path = "../triangulate" }
-wgpu = "0.9"
-winit = "0.26.0"
+wgpu = { version = "26" }
+winit = { version = "0.30", features = ["x11", "wayland"] }

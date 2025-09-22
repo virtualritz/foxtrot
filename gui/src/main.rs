@@ -1,8 +1,10 @@
+use std::sync::Arc;
 use std::time::SystemTime;
 use winit::{
-    event::Event,
-    event_loop::{ControlFlow, EventLoop},
-    window::Window,
+    application::ApplicationHandler,
+    event::WindowEvent as WinitWindowEvent,
+    event_loop::{ActiveEventLoop, EventLoop},
+    window::{Window, WindowId},
 };
 
 pub(crate) mod app;
@@ -13,64 +15,115 @@ pub(crate) mod model;
 use crate::app::App;
 use triangulate::mesh::Mesh;
 
-async fn run(
+struct GuiApp {
     start: SystemTime,
-    event_loop: EventLoop<()>,
-    window: Window,
-    loader: std::thread::JoinHandle<Mesh>,
-) {
-    let size = window.inner_size();
-    let (surface, adapter) = {
-        let instance = wgpu::Instance::new(wgpu::BackendBit::all());
-        let surface = unsafe { instance.create_surface(&window) };
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions {
-                power_preference: wgpu::PowerPreference::default(),
-                // Request an adapter which can render to our surface
-                compatible_surface: Some(&surface),
-            })
-            .await
-            .expect("Failed to find an appropriate adapter");
-        (surface, adapter)
-    };
+    loader: Option<std::thread::JoinHandle<Mesh>>,
+    window: Option<Arc<Window>>,
+    app: Option<App<'static>>,
+}
 
-    // Create the logical device and command queue
-    let (device, queue) = adapter
-        .request_device(
-            &wgpu::DeviceDescriptor {
-                label: None,
-                features: wgpu::Features::empty(),
-                limits: wgpu::Limits::default(),
-            },
-            None,
-        )
-        .await
-        .expect("Failed to create device");
+impl GuiApp {
+    fn new(start: SystemTime, loader: std::thread::JoinHandle<Mesh>) -> Self {
+        Self {
+            start,
+            loader: Some(loader),
+            window: None,
+            app: None,
+        }
+    }
+}
 
-    let mut app = App::new(start, size, adapter, surface, device, loader);
+impl ApplicationHandler for GuiApp {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        if self.window.is_none() {
+            let window = std::sync::Arc::new(
+                event_loop
+                    .create_window(winit::window::WindowAttributes::default().with_title("Foxtrot"))
+                    .expect("Failed to create window"),
+            );
 
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
+            // Initialize wgpu and create app
+            let size = window.inner_size();
+            let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+            let surface = instance
+                .create_surface(window.clone())
+                .expect("Failed to create surface");
+
+            let adapter =
+                pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+                    power_preference: wgpu::PowerPreference::default(),
+                    compatible_surface: Some(&surface),
+                    force_fallback_adapter: false,
+                }))
+                .expect("Failed to find an appropriate adapter");
+
+            let (device, queue) =
+                pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+                    label: None,
+                    required_features: wgpu::Features::empty(),
+                    required_limits: wgpu::Limits::default(),
+                    memory_hints: Default::default(),
+                    trace: Default::default(),
+                }))
+                .expect("Failed to create device");
+
+            let app = App::new(
+                self.start,
+                size,
+                adapter,
+                surface,
+                device,
+                queue,
+                self.loader.take().unwrap(),
+            );
+
+            self.app = Some(app);
+            self.window = Some(window);
+        }
+    }
+
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        _window_id: WindowId,
+        event: WinitWindowEvent,
+    ) {
         use app::Reply;
-        match event {
-            Event::WindowEvent { event, .. } => match app.window_event(event) {
+
+        if let Some(app) = &mut self.app
+            && let Some(window) = &self.window
+        {
+            match app.window_event(event) {
                 Reply::Continue => (),
-                Reply::Quit => *control_flow = ControlFlow::Exit,
+                Reply::Quit => event_loop.exit(),
                 Reply::Redraw => {
-                    if app.redraw(&queue) {
+                    if app.redraw() {
                         window.request_redraw();
                     }
                 }
-            },
-            Event::RedrawRequested(_) => {
-                if app.redraw(&queue) {
-                    window.request_redraw();
-                }
             }
-            Event::DeviceEvent { event, .. } => app.device_event(event),
-            _ => (),
         }
-    });
+    }
+
+    fn device_event(
+        &mut self,
+        _event_loop: &ActiveEventLoop,
+        _device_id: winit::event::DeviceId,
+        event: winit::event::DeviceEvent,
+    ) {
+        if let Some(app) = &mut self.app {
+            app.device_event(event);
+        }
+    }
+
+    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+        if let Some(app) = &mut self.app
+            && let Some(window) = &self.window
+            && app.redraw()
+        {
+            window.request_redraw();
+        }
+    }
 }
 
 fn main() {
@@ -91,22 +144,33 @@ fn main() {
         .expect("Could not get input file")
         .to_owned();
 
-    // Kick off the loader thread immediately, so that the STEP file is parsed
-    // and triangulated in the background while we wait for a GPU context
-    let loader = std::thread::spawn(|| {
-        println!("Loading mesh!");
-        use step::step_file::StepFile;
-        use triangulate::triangulate::triangulate;
+    // Load and triangulate the STEP file first
+    println!("Loading mesh!");
+    use step::step_file::StepFile;
+    use triangulate::triangulate::triangulate;
 
-        let data = std::fs::read(input).expect("Could not open file");
-        let flat = StepFile::strip_flatten(&data);
-        let step = StepFile::parse(&flat);
-        let (mesh, _stats) = triangulate(&step);
-        mesh
-    });
+    let data = std::fs::read(input).expect("Could not open file");
+    let flat = StepFile::strip_flatten(&data);
+    let step = StepFile::parse(&flat);
+    let (mesh, _stats) = triangulate(&step);
 
-    let event_loop = EventLoop::new();
-    let window = winit::window::Window::new(&event_loop).unwrap();
-    window.set_title("Foxtrot");
-    pollster::block_on(run(start, event_loop, window, loader));
+    // Check if the mesh is empty
+    if mesh.verts.is_empty() || mesh.triangles.is_empty() {
+        eprintln!("Error: The STEP file produced an empty mesh (no vertices or triangles).");
+        eprintln!("This may indicate an unsupported geometry type or parsing issue.");
+        std::process::exit(1);
+    }
+
+    println!(
+        "Mesh loaded: {} vertices, {} triangles",
+        mesh.verts.len(),
+        mesh.triangles.len()
+    );
+
+    // Start the mesh in a thread for the GUI to pick up later
+    let loader = std::thread::spawn(move || mesh);
+
+    let event_loop = EventLoop::new().expect("Failed to create event loop");
+    let mut app = GuiApp::new(start, loader);
+    let _ = event_loop.run_app(&mut app);
 }

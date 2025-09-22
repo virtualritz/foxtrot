@@ -2,19 +2,19 @@ use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 
 use glm::{DMat4, DVec3, DVec4, U32Vec3};
-use log::{error, info, warn};
+use log::{debug, error, info, warn};
 use nalgebra_glm as glm;
 
 #[cfg(feature = "rayon")]
 use rayon::prelude::*;
 
 use crate::{
+    Error,
     curve::Curve,
     mesh,
     mesh::{Mesh, Triangle},
     stats::Stats,
     surface::Surface,
-    Error,
 };
 use nurbs::{BsplineSurface, KnotVector, NurbsSurface, SampledCurve, SampledSurface};
 use step::{
@@ -351,8 +351,14 @@ fn shell(s: &StepFile, c: Shell, mesh: &mut Mesh, stats: &mut Stats) {
 fn open_shell(s: &StepFile, c: OpenShell, mesh: &mut Mesh, stats: &mut Stats) {
     let cs = s.entity(c).expect("Could not get OpenShell");
     for face in &cs.cfs_faces {
-        if let Err(err) = advanced_face(s, face.cast(), mesh, stats) {
-            error!("Failed to triangulate {:?}: {}", s[*face], err);
+        // Check if this face is actually an AdvancedFace before casting
+        if s.entity::<AdvancedFace_>(face.cast()).is_some() {
+            if let Err(err) = advanced_face(s, face.cast(), mesh, stats) {
+                error!("Failed to triangulate {:?}: {}", s[*face], err);
+            }
+        } else {
+            // Skip faces that aren't AdvancedFace
+            debug!("Skipping non-AdvancedFace: {:?}", s[*face]);
         }
     }
     stats.num_shells += 1;
@@ -361,8 +367,14 @@ fn open_shell(s: &StepFile, c: OpenShell, mesh: &mut Mesh, stats: &mut Stats) {
 fn closed_shell(s: &StepFile, c: ClosedShell, mesh: &mut Mesh, stats: &mut Stats) {
     let cs = s.entity(c).expect("Could not get ClosedShell");
     for face in &cs.cfs_faces {
-        if let Err(err) = advanced_face(s, face.cast(), mesh, stats) {
-            error!("Failed to triangulate {:?}: {}", s[*face], err);
+        // Check if this face is actually an AdvancedFace before casting
+        if s.entity::<AdvancedFace_>(face.cast()).is_some() {
+            if let Err(err) = advanced_face(s, face.cast(), mesh, stats) {
+                error!("Failed to triangulate {:?}: {}", s[*face], err);
+            }
+        } else {
+            // Skip faces that aren't AdvancedFace
+            debug!("Skipping non-AdvancedFace: {:?}", s[*face]);
         }
     }
     stats.num_shells += 1;
@@ -374,7 +386,7 @@ fn advanced_face(
     mesh: &mut Mesh,
     stats: &mut Stats,
 ) -> Result<(), Error> {
-    let face = s.entity(f).expect("Could not get AdvancedFace");
+    let face = s.entity(f).ok_or(Error::UnknownSurfaceType)?;
     stats.num_faces += 1;
 
     // Grab the surface, returning early if it's unimplemented
@@ -525,7 +537,7 @@ fn surface(s: &StepFile, surf: ap214::Surface) -> Result<Surface, Error> {
                 axis,
                 ref_direction,
                 location,
-                c.radius.0 .0 .0,
+                c.radius.0.0.0,
             ))
         }
         Entity::ToroidalSurface(c) => {
@@ -533,8 +545,8 @@ fn surface(s: &StepFile, surf: ap214::Surface) -> Result<Surface, Error> {
             Ok(Surface::new_torus(
                 location,
                 axis,
-                c.major_radius.0 .0 .0,
-                c.minor_radius.0 .0 .0,
+                c.major_radius.0.0.0,
+                c.minor_radius.0.0.0,
             ))
         }
         Entity::Plane(p) => {
@@ -557,7 +569,7 @@ fn surface(s: &StepFile, surf: ap214::Surface) -> Result<Surface, Error> {
             // We'll ignore axis and ref_direction in favor of building an
             // orthonormal basis later on
             let (location, _axis, _ref_direction) = axis2_placement_3d(s, c.position);
-            Ok(Surface::new_sphere(location, c.radius.0 .0 .0))
+            Ok(Surface::new_sphere(location, c.radius.0.0.0))
         }
         Entity::BSplineSurfaceWithKnots(b) => {
             // TODO: make KnotVector::from_multiplicies accept iterators?
@@ -735,7 +747,7 @@ fn curve(
                 location,
                 axis,
                 ref_direction,
-                c.radius.0 .0 .0,
+                c.radius.0.0.0,
                 edge_curve.edge_start == edge_curve.edge_end,
                 edge_curve.same_sense ^ !orientation,
             )
@@ -746,8 +758,8 @@ fn curve(
                 location,
                 axis,
                 ref_direction,
-                c.semi_axis_1.0 .0 .0,
-                c.semi_axis_2.0 .0 .0,
+                c.semi_axis_1.0.0.0,
+                c.semi_axis_2.0.0.0,
                 edge_curve.edge_start == edge_curve.edge_end,
                 edge_curve.same_sense ^ !orientation,
             )

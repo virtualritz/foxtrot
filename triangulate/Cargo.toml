@@ -2,17 +2,17 @@
 name = "triangulate"
 version = "0.1.0"
 authors = ["Matt Keeter <matt.j.keeter@gmail.com>"]
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 cdt = { path = "../cdt" }
 
 log = "0.4"
-nalgebra-glm = "0.18"
+nalgebra-glm = "0.20"
 nurbs = { path = "../nurbs" }
-rayon = { version = "1.10", optional = true }
+rayon = { version = "1", optional = true }
 step = { path = "../step" }
-thiserror = "1.0"
+thiserror = "2"
 
 [features]
 default = ["rayon"]

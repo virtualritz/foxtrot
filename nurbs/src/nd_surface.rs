@@ -99,10 +99,14 @@ impl<const D: usize> NdBsplineSurface<D> {
         let mut SKL = vec![vec![TVec::zeros(); E + 1]; E + 1];
 
         let uspan = self.u_knots.find_span(uv.x);
-        let Nu_deriv = self.u_knots.basis_functions_derivatives_for_span(uspan, uv.x, du);
+        let Nu_deriv = self
+            .u_knots
+            .basis_functions_derivatives_for_span(uspan, uv.x, du);
 
         let vspan = self.v_knots.find_span(uv.y);
-        let Nv_deriv = self.v_knots.basis_functions_derivatives_for_span(vspan, uv.y, dv);
+        let Nv_deriv = self
+            .v_knots
+            .basis_functions_derivatives_for_span(vspan, uv.y, dv);
 
         let mut temp = vec![TVec::zeros(); q + 1];
         for k in 0..=du {

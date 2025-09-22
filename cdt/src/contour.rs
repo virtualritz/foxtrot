@@ -1,6 +1,6 @@
 use crate::{
     indexes::{
-        ContourIndex, ContourVec, EdgeIndex, HullIndex, PointIndex, EMPTY_CONTOUR, EMPTY_EDGE,
+        ContourIndex, ContourVec, EMPTY_CONTOUR, EMPTY_EDGE, EdgeIndex, HullIndex, PointIndex,
     },
     triangulate::Triangulation,
 };

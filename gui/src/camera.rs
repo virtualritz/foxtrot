@@ -48,14 +48,14 @@ impl Camera {
 
     pub fn mouse_pressed(&mut self, button: MouseButton) {
         // If we were previously free, then switch to panning or rotating
-        if let MouseState::Free(pos) = &self.mouse {
-            if let Some(m) = match button {
+        if let MouseState::Free(pos) = &self.mouse
+            && let Some(m) = match button {
                 MouseButton::Left => Some(MouseState::Rotate(*pos)),
                 MouseButton::Right => Some(MouseState::Pan(*pos, self.mouse_pos(*pos))),
                 _ => None,
-            } {
-                self.mouse = m
             }
+        {
+            self.mouse = m
         }
     }
 
@@ -121,6 +121,13 @@ impl Camera {
     }
 
     pub fn fit_verts(&mut self, verts: &[Vertex]) {
+        // Handle empty vertex arrays
+        if verts.is_empty() {
+            self.scale = 1.0;
+            self.center = Vec3::new(0.0, 0.0, 0.0);
+            return;
+        }
+
         let xb = verts
             .iter()
             .map(|v| v.pos.x)
@@ -142,7 +149,13 @@ impl Camera {
         let dx = xb.1 - xb.0;
         let dy = yb.1 - yb.0;
         let dz = zb.1 - zb.0;
-        self.scale = (1.0 / dx.max(dy).max(dz)) as f32;
+        let max_extent = dx.max(dy).max(dz);
+        // Prevent division by zero for single-point models
+        if max_extent > 0.0 {
+            self.scale = (1.0 / max_extent) as f32;
+        } else {
+            self.scale = 1.0;
+        }
         self.center = Vec3::new(
             (xb.0 + xb.1) as f32 / 2.0,
             (yb.0 + yb.1) as f32 / 2.0,

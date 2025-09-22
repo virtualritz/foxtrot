@@ -26,14 +26,17 @@ enum Type<'a> {
 }
 struct TypeMap<'a>(HashMap<&'a str, Type<'a>>, &'a HashMap<&'a str, Ref<'a>>);
 impl<'a> TypeMap<'a> {
-    fn to_rtype_build(&mut self, s: &'a str) -> String {
+    fn build_rtype(&mut self, s: &'a str) -> String {
         if !self.0.contains_key(s) {
             self.build(s);
         }
         self.to_rtype(s)
     }
     fn is_entity(&self, s: &str) -> bool {
-        let t = self.0.get(s).unwrap_or_else(|| panic!("Could not get {:?}", s));
+        let t = self
+            .0
+            .get(s)
+            .unwrap_or_else(|| panic!("Could not get {:?}", s));
         match &t {
             Type::Entity { .. } => true,
             Type::Select(v) => v.iter().all(|s| self.is_entity(s)),
@@ -41,7 +44,10 @@ impl<'a> TypeMap<'a> {
         }
     }
     fn to_rtype(&self, s: &str) -> String {
-        let t = self.0.get(s).unwrap_or_else(|| panic!("Could not get {:?}", s));
+        let t = self
+            .0
+            .get(s)
+            .unwrap_or_else(|| panic!("Could not get {:?}", s));
         match &t {
             Type::Entity { .. }
             | Type::Redeclared(_)
@@ -53,20 +59,20 @@ impl<'a> TypeMap<'a> {
 
             Type::Aggregation { optional, type_ } => {
                 if *optional {
-                    format!("Vec<Option<{}>>", self.to_inner_rtype(type_))
+                    format!("Vec<Option<{}>>", Self::to_inner_rtype(type_))
                 } else {
-                    format!("Vec<{}>", self.to_inner_rtype(type_))
+                    format!("Vec<{}>", Self::to_inner_rtype(type_))
                 }
             }
         }
     }
-    fn to_inner_rtype(&self, t: &Type<'a>) -> String {
+    fn to_inner_rtype(t: &Type<'a>) -> String {
         match &t {
             Type::Aggregation { optional, type_ } => {
                 if *optional {
-                    format!("Vec<Option<{}>>", self.to_inner_rtype(type_))
+                    format!("Vec<Option<{}>>", Self::to_inner_rtype(type_))
                 } else {
-                    format!("Vec<{}>", self.to_inner_rtype(type_))
+                    format!("Vec<{}>", Self::to_inner_rtype(type_))
                 }
             }
             Type::Redeclared(r) => {
@@ -90,7 +96,10 @@ impl<'a> TypeMap<'a> {
         if !self.0.contains_key(s) {
             self.build(s);
         }
-        let t = self.0.get(s).unwrap_or_else(|| panic!("Could not get {:?}", s));
+        let t = self
+            .0
+            .get(s)
+            .unwrap_or_else(|| panic!("Could not get {:?}", s));
         if let Type::Entity { attrs, .. } = &t {
             attrs.clone()
         } else {
@@ -132,15 +141,15 @@ impl<'a> Type<'a> {
     where
         W: std::fmt::Write,
     {
-        if let Type::Entity { supertypes, .. } = self {
-            if !supertypes.is_empty() {
-                write!(buf, r#"        "{}" => &["#, capitalize(name))?;
-                for (i, s) in supertypes.iter().enumerate() {
-                    if i == supertypes.len() - 1 {
-                        writeln!(buf, r#""{}"],"#, capitalize(s))?;
-                    } else {
-                        write!(buf, r#""{}", "#, capitalize(s))?;
-                    }
+        if let Type::Entity { supertypes, .. } = self
+            && !supertypes.is_empty()
+        {
+            write!(buf, r#"        "{}" => &["#, capitalize(name))?;
+            for (i, s) in supertypes.iter().enumerate() {
+                if i == supertypes.len() - 1 {
+                    writeln!(buf, r#""{}"],"#, capitalize(s))?;
+                } else {
+                    write!(buf, r#""{}", "#, capitalize(s))?;
                 }
             }
         }
@@ -366,8 +375,8 @@ impl<'a> HasId for {0}<'a> {{
 }}
 "#,
                     camel_name,
-                    type_map.to_inner_rtype(self),
-                    type_map.to_inner_rtype(type_)
+                    TypeMap::to_inner_rtype(self),
+                    TypeMap::to_inner_rtype(type_)
                 )?;
             }
 
@@ -506,7 +515,7 @@ enum Ref<'a> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-pub fn gen(s: &mut Syntax) -> Result<String, std::fmt::Error> {
+pub fn r#gen(s: &mut Syntax) -> Result<String, std::fmt::Error> {
     assert!(s.0.len() == 1, "Multiple schemas are unsupported");
 
     // First pass: collect entity names, then convert ambiguous IDs in SELECT
@@ -724,7 +733,7 @@ impl<'a> SchemaBody<'a> {
 impl<'a> Declaration<'a> {
     fn collect_entity_names(&self, entity_names: &mut HashSet<&'a str>) {
         if let Declaration::Entity(d) = self {
-            entity_names.insert(d.0 .0 .0);
+            entity_names.insert(d.0.0.0);
         }
     }
     fn disambiguate(&mut self, entity_names: &HashSet<&str>) {
@@ -735,7 +744,7 @@ impl<'a> Declaration<'a> {
     fn build_ref_map(&'a self, ref_map: &mut HashMap<&'a str, Ref<'a>>) {
         match self {
             Declaration::Entity(d) => {
-                ref_map.insert(d.0 .0 .0, Ref::Entity(d));
+                ref_map.insert(d.0.0.0, Ref::Entity(d));
             }
             Declaration::Type(d) => {
                 ref_map.insert(d.type_id.0, Ref::Type(&d.underlying_type));
@@ -752,7 +761,7 @@ impl<'a> TypeDecl<'a> {
     }
 }
 impl<'a> UnderlyingType<'a> {
-    fn to_type(&'a self, type_map: &mut TypeMap<'a>) -> Type {
+    fn to_type(&'a self, type_map: &mut TypeMap<'a>) -> Type<'a> {
         match self {
             UnderlyingType::Concrete(c) => c.to_type(type_map),
             UnderlyingType::Constructed(c) => c.to_type(),
@@ -760,7 +769,7 @@ impl<'a> UnderlyingType<'a> {
     }
 }
 impl<'a> ConcreteTypes<'a> {
-    fn to_type(&self, type_map: &mut TypeMap<'a>) -> Type {
+    fn to_type(&'a self, type_map: &mut TypeMap<'a>) -> Type<'a> {
         match self {
             ConcreteTypes::Aggregation(a) => a.to_type(type_map),
             ConcreteTypes::Simple(s) => s.to_type(),
@@ -815,7 +824,7 @@ impl<'a> SimpleExpression<'a> {
     }
 }
 impl<'a> AggregationTypes<'a> {
-    fn to_type(&self, type_map: &mut TypeMap<'a>) -> Type {
+    fn to_type(&'a self, type_map: &mut TypeMap<'a>) -> Type<'a> {
         let (optional, instantiable) = match self {
             AggregationTypes::Array(a) => (a.optional, &a.instantiable_type),
             AggregationTypes::Bag(a) => (false, &a.1),
@@ -838,7 +847,7 @@ impl<'a> AggregationTypes<'a> {
     }
 }
 impl<'a> ConstructedTypes<'a> {
-    fn to_type(&'a self) -> Type {
+    fn to_type(&'a self) -> Type<'a> {
         match self {
             ConstructedTypes::Enumeration(e) => e.to_type(),
             ConstructedTypes::Select(s) => s.to_type(),
@@ -846,7 +855,7 @@ impl<'a> ConstructedTypes<'a> {
     }
 }
 impl<'a> EnumerationType<'a> {
-    fn to_type(&self) -> Type {
+    fn to_type(&self) -> Type<'_> {
         assert!(
             !self.extensible,
             "Extensible enumerations are not supported"
@@ -858,7 +867,7 @@ impl<'a> EnumerationType<'a> {
     }
 }
 impl<'a> EnumerationItems<'a> {
-    fn to_type(&self) -> Type {
+    fn to_type(&self) -> Type<'_> {
         let mut out = Vec::new();
         for e in &self.0 {
             out.push(e.0);
@@ -867,7 +876,7 @@ impl<'a> EnumerationItems<'a> {
     }
 }
 impl<'a> SelectType<'a> {
-    fn to_type(&'a self) -> Type {
+    fn to_type(&'a self) -> Type<'a> {
         assert!(!self.extensible, "Cannot handle extensible lists");
         assert!(!self.generic_entity, "Cannot handle generic entity lists");
         match &self.list_or_extension {
@@ -877,7 +886,7 @@ impl<'a> SelectType<'a> {
     }
 }
 impl<'a> SelectList<'a> {
-    fn to_type(&'a self) -> Type {
+    fn to_type(&'a self) -> Type<'a> {
         let mut out = Vec::new();
         for e in &self.0 {
             out.push(e.name());
@@ -897,7 +906,7 @@ impl<'a> EntityDecl<'a> {
                     AttributeDecl::Redeclared(r) => {
                         // There can't be a RENAMED clause here
                         assert!(r.1.is_none());
-                        derived.insert((r.0 .0 .0 .0, r.0 .1 .0 .0));
+                        derived.insert((r.0.0.0.0, r.0.1.0.0));
                     }
                     AttributeDecl::Id(_) => continue,
                 }
@@ -910,7 +919,7 @@ impl<'a> EntityDecl<'a> {
 
         // Tag any inherited attribute names with > 1 occurence so we can
         // special-case them in the struct
-        let subsuper = &self.0 .1;
+        let subsuper = &self.0.1;
         let mut inherited_name_count: HashMap<&str, usize> = HashMap::new();
         if let Some(subs) = &subsuper.1 {
             for sub in &subs.0 {
@@ -1006,7 +1015,7 @@ impl<'a> ParameterType<'a> {
     fn to_attr_type_str(&'a self, type_map: &mut TypeMap<'a>) -> String {
         match self {
             ParameterType::Generalized(g) => g.to_attr_type_str(type_map),
-            ParameterType::Named(e) => type_map.to_rtype_build(e.name()),
+            ParameterType::Named(e) => type_map.build_rtype(e.name()),
             ParameterType::Simple(e) => e.to_attr_type_str().to_owned(),
         }
     }
@@ -1019,7 +1028,7 @@ impl<'a> GeneralAggregationTypes<'a> {
             GeneralAggregationTypes::List(a) => a.bounds.as_ref().map(|b| &b.1),
             GeneralAggregationTypes::Set(a) => a.bounds.as_ref().map(|b| &b.1),
         };
-        upper.and_then(|v| v.0 .0.to_value())
+        upper.and_then(|v| v.0.0.to_value())
     }
     fn to_attr_type_str(&'a self, type_map: &mut TypeMap<'a>) -> String {
         let (optional, param_type) = match self {
@@ -1052,13 +1061,15 @@ impl<'a> SimpleTypes<'a> {
             SimpleTypes::String(_) => "&'a str",
         }
     }
-    fn to_type(&self) -> Type {
+    fn to_type(&self) -> Type<'_> {
         Type::RedeclaredPrimitive(self.to_attr_type_str())
     }
 }
 impl<'a> ConstructedTypes<'a> {
     fn disambiguate(&mut self, entity_names: &HashSet<&str>) {
-        if let ConstructedTypes::Select(e) = self { e.disambiguate(entity_names) }
+        if let ConstructedTypes::Select(e) = self {
+            e.disambiguate(entity_names)
+        }
     }
 }
 impl<'a> SelectType<'a> {

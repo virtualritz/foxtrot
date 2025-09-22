@@ -3,7 +3,7 @@ use std::f64::consts::PI;
 use glm::{DMat4, DVec2, DVec3, DVec4};
 use nalgebra_glm as glm;
 
-use crate::{mesh::Vertex, Error};
+use crate::{Error, mesh::Vertex};
 use nurbs::{AbstractSurface, NdBsplineSurface, SampledSurface};
 
 // Represents a surface in 3D space, with a function to project a 3D point

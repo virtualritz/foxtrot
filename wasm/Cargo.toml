@@ -2,7 +2,10 @@
 name = "wasm"
 version = "0.1.0"
 authors = ["Matt Keeter <matt.j.keeter@gmail.com>"]
-edition = "2021"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 console_log = "1"
@@ -10,6 +13,3 @@ log = "0.4"
 step = { path = "../step", default-features = false }
 triangulate = { path = "../triangulate", default-features = false, features = [] }
 wasm-bindgen = "0.2"
-
-[lib]
-crate-type = ["cdylib", "rlib"]

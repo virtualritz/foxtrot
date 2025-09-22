@@ -21,7 +21,7 @@ impl KnotVector {
         let U = knots
             .iter()
             .zip(multiplicities.iter())
-            .flat_map(|(k, m)| std::iter::repeat(*k).take(*m))
+            .flat_map(|(k, m)| std::iter::repeat_n(*k, *m))
             .collect();
         Self { U, p }
     }
@@ -111,7 +111,12 @@ impl KnotVector {
         self.basis_functions_derivatives_for_span(i, u, n)
     }
 
-    pub fn basis_functions_derivatives_for_span(&self, i: usize, u: f64, n: usize) -> Vec<Vec<f64>> {
+    pub fn basis_functions_derivatives_for_span(
+        &self,
+        i: usize,
+        u: f64,
+        n: usize,
+    ) -> Vec<Vec<f64>> {
         let mut ndu = vec![vec![0.0; self.p + 1]; self.p + 1];
         let mut a = vec![vec![0.0; self.p + 1]; 2];
         let mut left = vec![0.0; self.p + 1];

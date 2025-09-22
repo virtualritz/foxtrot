@@ -1,5 +1,5 @@
 use clap::{App, Arg};
-use rusttype::{point, Font, OutlineBuilder, Scale};
+use rusttype::{Font, OutlineBuilder, Scale, point};
 
 const BEZIER_RESOLUTION: usize = 4;
 

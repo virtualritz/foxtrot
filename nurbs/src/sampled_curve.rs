@@ -1,5 +1,5 @@
 use crate::{abstract_curve::AbstractCurve, nd_curve::NdBsplineCurve};
-use nalgebra_glm::{dot, length, length2, DVec3};
+use nalgebra_glm::{DVec3, dot, length, length2};
 
 #[derive(Debug)]
 pub struct SampledCurve<const N: usize> {
