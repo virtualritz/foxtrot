@@ -52,14 +52,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         i += 1;
 
-        let seed = rand::thread_rng().r#gen();
+        let seed = rand::rng().random();
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(seed);
 
         // We generate random points as f32, to make it more likely that
         // some will line up exactly on one axis or another, which can trigger
         // interesting edge cases.  Experimentally, we have X or Y collisions
         // at a rate of about one per 4K fuzzed samples.
-        let points: Vec<_> = repeat_with(|| rng.gen_range(0.0..1.0))
+        let points: Vec<_> = repeat_with(|| rng.random_range(0.0..1.0))
             .tuple_windows()
             .map(|(a, b): (f32, f32)| (a as f64, b as f64))
             .take(num)

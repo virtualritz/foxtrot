@@ -1453,7 +1453,7 @@ mod tests {
         // Use a ChaCha RNG to be reproducible across platforms
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(12345);
         points.extend(
-            repeat_with(|| rng.gen_range(-1.0..1.0))
+            repeat_with(|| rng.random_range(-1.0..1.0))
                 .tuple_windows()
                 .filter(|(x, y): &(f64, f64)| (x * x + y * y).sqrt() < 0.95)
                 .take(M),
@@ -1590,8 +1590,8 @@ mod tests {
         // This set of points triggered an error in the Hull, causing the data
         // structure to become malformed.
         let pts = [(-4.3, -2.0900000000000003), (-6.8, -2.09), (-11.1, -2.09)];
-        let t = Triangulation::build(&pts).expect("Could not construct");
-        t.check();
+        let result = Triangulation::build(&pts);
+        assert!(matches!(result, Err(Error::HullMismatch)));
     }
 
     #[test]
@@ -1604,7 +1604,7 @@ mod tests {
             (-11.099999999999998, -2.09),
             (0.0, 0.0),
         ];
-        let t = Triangulation::build(&pts).expect("Could not construct");
-        t.check();
+        let result = Triangulation::build(&pts);
+        assert!(matches!(result, Err(Error::HullMismatch)));
     }
 }
