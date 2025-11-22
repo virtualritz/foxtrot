@@ -49,6 +49,8 @@ struct StepEntity {
     id: usize,
     entity_type: String,
     record_name: String,
+    color: [f32; 3], // RGB color for this entity
+    visible: bool,
 }
 
 /// STEP file metadata
@@ -65,7 +67,11 @@ struct StepMetadata {
 struct UiState {
     show_entity_list: bool,
     show_metadata: bool,
+    show_colors: bool,
     background_color: [f32; 3],
+    wireframe_color: [f32; 3],
+    show_wireframe: bool,
+    show_faces: bool,
 }
 
 impl Default for UiState {
@@ -73,7 +79,11 @@ impl Default for UiState {
         Self {
             show_entity_list: true,
             show_metadata: true,
-            background_color: [0.2, 0.2, 0.2],
+            show_colors: true,
+            background_color: [0.1, 0.12, 0.15],
+            wireframe_color: [0.4, 0.6, 0.8],
+            show_wireframe: true,
+            show_faces: true,
         }
     }
 }
@@ -94,9 +104,46 @@ impl Default for StepViewerApp {
 }
 
 impl StepViewerApp {
+    /// Generate a color based on entity type
+    fn color_for_entity_type(entity_type: &str, index: usize) -> [f32; 3] {
+        // Assign colors based on common STEP entity types
+        match entity_type {
+            t if t.contains("FACE") || t.contains("Face") => [0.3, 0.7, 0.9], // Blue for faces
+            t if t.contains("EDGE") || t.contains("Edge") => [0.9, 0.5, 0.2], // Orange for edges
+            t if t.contains("VERTEX") || t.contains("Vertex") => [0.9, 0.3, 0.3], // Red for vertices
+            t if t.contains("SURFACE") || t.contains("Surface") => [0.3, 0.9, 0.5], // Green for surfaces
+            t if t.contains("CURVE") || t.contains("Curve") => [0.9, 0.9, 0.3], // Yellow for curves
+            t if t.contains("SOLID") || t.contains("Solid") => [0.6, 0.4, 0.9], // Purple for solids
+            t if t.contains("SHELL") || t.contains("Shell") => [0.4, 0.9, 0.9], // Cyan for shells
+            _ => {
+                // Generate a unique color based on index using golden ratio
+                let hue = (index as f32 * 0.618033988749895) % 1.0;
+                Self::hsv_to_rgb(hue, 0.6, 0.9)
+            }
+        }
+    }
+
+    /// Convert HSV to RGB
+    fn hsv_to_rgb(h: f32, s: f32, v: f32) -> [f32; 3] {
+        let c = v * s;
+        let x = c * (1.0 - ((h * 6.0) % 2.0 - 1.0).abs());
+        let m = v - c;
+
+        let (r, g, b) = match (h * 6.0) as i32 {
+            0 => (c, x, 0.0),
+            1 => (x, c, 0.0),
+            2 => (0.0, c, x),
+            3 => (0.0, x, c),
+            4 => (x, 0.0, c),
+            _ => (c, 0.0, x),
+        };
+
+        [r + m, g + m, b + m]
+    }
+
     /// Create a new STEP viewer application
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let mut app = if let Some(storage) = cc.storage {
+        let app = if let Some(storage) = cc.storage {
             eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default()
         } else {
             Default::default()
@@ -206,10 +253,23 @@ impl StepViewerApp {
             .iter()
             .flat_map(|section| section.entities.iter())
             .enumerate()
-            .map(|(idx, entity)| StepEntity {
-                id: idx,
-                entity_type: "entity".to_string(),
-                record_name: format!("{:?}", entity),
+            .map(|(idx, entity)| {
+                let record_name = format!("{:?}", entity);
+                // Extract entity type from the debug format (first word before parenthesis)
+                let entity_type = record_name
+                    .split('(')
+                    .next()
+                    .unwrap_or("Unknown")
+                    .to_string();
+                let color = Self::color_for_entity_type(&entity_type, idx);
+
+                StepEntity {
+                    id: idx,
+                    entity_type,
+                    record_name,
+                    color,
+                    visible: true,
+                }
             })
             .collect();
 
@@ -255,6 +315,10 @@ impl StepViewerApp {
                 ui.menu_button("View", |ui| {
                     ui.checkbox(&mut self.ui_state.show_entity_list, "Entity List");
                     ui.checkbox(&mut self.ui_state.show_metadata, "Metadata");
+                    ui.checkbox(&mut self.ui_state.show_colors, "Colors Panel");
+                    ui.separator();
+                    ui.checkbox(&mut self.ui_state.show_wireframe, "Wireframe");
+                    ui.checkbox(&mut self.ui_state.show_faces, "Faces");
                 });
 
                 ui.add_space(16.0);
@@ -275,14 +339,31 @@ impl StepViewerApp {
                 ui.heading("Entities");
                 ui.separator();
 
-                if let Some(data) = &self.step_data {
+                if let Some(data) = &mut self.step_data {
                     ui.label(format!("Total: {}", data.entities.len()));
                     ui.separator();
 
                     egui::ScrollArea::vertical().show(ui, |ui| {
-                        for entity in &data.entities {
+                        for entity in &mut data.entities {
                             ui.horizontal(|ui| {
-                                ui.label(format!("#{}: {}", entity.id, entity.record_name));
+                                // Visibility checkbox
+                                ui.checkbox(&mut entity.visible, "");
+
+                                // Color indicator
+                                let color = egui::Color32::from_rgb(
+                                    (entity.color[0] * 255.0) as u8,
+                                    (entity.color[1] * 255.0) as u8,
+                                    (entity.color[2] * 255.0) as u8,
+                                );
+                                ui.colored_label(color, "●");
+
+                                // Entity name (truncated)
+                                let name = if entity.record_name.len() > 40 {
+                                    format!("{}...", &entity.record_name[..40])
+                                } else {
+                                    entity.record_name.clone()
+                                };
+                                ui.label(format!("#{}: {}", entity.id, name));
                             });
                         }
                     });
@@ -327,12 +408,69 @@ impl StepViewerApp {
                     ui.separator();
                     ui.label("Description:");
                     ui.label(&data.metadata.file_description);
-
-                    ui.separator();
-                    ui.heading("View Settings");
-                    ui.color_edit_button_rgb(&mut self.ui_state.background_color);
                 } else {
                     ui.label("No file loaded");
+                }
+
+                ui.separator();
+                ui.heading("Camera");
+                if self.step_data.is_some() {
+                    ui.label(format!("Distance: {:.2}", self.camera_distance));
+                    ui.label(format!(
+                        "Rotation: ({:.1}°, {:.1}°)",
+                        self.camera_rotation.0, self.camera_rotation.1
+                    ));
+                }
+            });
+    }
+
+    /// Show the colors panel
+    fn show_colors(&mut self, ctx: &egui::Context) {
+        if !self.ui_state.show_colors {
+            return;
+        }
+
+        egui::Window::new("Colors")
+            .default_width(300.0)
+            .show(ctx, |ui| {
+                ui.heading("View Colors");
+                ui.separator();
+
+                ui.label("Background:");
+                ui.color_edit_button_rgb(&mut self.ui_state.background_color);
+
+                ui.label("Wireframe:");
+                ui.color_edit_button_rgb(&mut self.ui_state.wireframe_color);
+
+                ui.separator();
+                ui.heading("Display Options");
+                ui.checkbox(&mut self.ui_state.show_wireframe, "Show Wireframe");
+                ui.checkbox(&mut self.ui_state.show_faces, "Show Faces");
+
+                ui.separator();
+                ui.label("Entity Color Legend:");
+                ui.separator();
+
+                let legend_items = [
+                    ("Faces", [0.3, 0.7, 0.9]),
+                    ("Edges", [0.9, 0.5, 0.2]),
+                    ("Vertices", [0.9, 0.3, 0.3]),
+                    ("Surfaces", [0.3, 0.9, 0.5]),
+                    ("Curves", [0.9, 0.9, 0.3]),
+                    ("Solids", [0.6, 0.4, 0.9]),
+                    ("Shells", [0.4, 0.9, 0.9]),
+                ];
+
+                for (name, color) in legend_items {
+                    ui.horizontal(|ui| {
+                        let egui_color = egui::Color32::from_rgb(
+                            (color[0] * 255.0) as u8,
+                            (color[1] * 255.0) as u8,
+                            (color[2] * 255.0) as u8,
+                        );
+                        ui.colored_label(egui_color, "●");
+                        ui.label(name);
+                    });
                 }
             });
     }
@@ -398,10 +536,14 @@ impl StepViewerApp {
                     egui::Color32::LIGHT_GRAY,
                 );
 
-                // Draw a simple wireframe cube to show it's working
+                // Draw a simple colored cube to show it's working
                 let center = rect.center();
                 let size = 100.0;
-                let color = egui::Color32::from_rgb(100, 150, 200);
+                let wireframe_color = egui::Color32::from_rgb(
+                    (self.ui_state.wireframe_color[0] * 255.0) as u8,
+                    (self.ui_state.wireframe_color[1] * 255.0) as u8,
+                    (self.ui_state.wireframe_color[2] * 255.0) as u8,
+                );
 
                 // Simple 2D projection of 3D cube
                 let angle_x = self.camera_rotation.0.to_radians();
@@ -446,28 +588,76 @@ impl StepViewerApp {
                     .map(|c| project(c[0], c[1], c[2]))
                     .collect();
 
-                // Back face
-                for i in 0..4 {
-                    painter.line_segment(
-                        [projected[i], projected[(i + 1) % 4]],
-                        egui::Stroke::new(1.0, color),
-                    );
+                // Face colors (different color for each face)
+                let face_colors = [
+                    [0.3, 0.7, 0.9],  // Front - Blue
+                    [0.9, 0.5, 0.2],  // Back - Orange
+                    [0.9, 0.3, 0.3],  // Bottom - Red
+                    [0.3, 0.9, 0.5],  // Top - Green
+                    [0.9, 0.9, 0.3],  // Left - Yellow
+                    [0.6, 0.4, 0.9],  // Right - Purple
+                ];
+
+                // Draw filled faces if enabled
+                if self.ui_state.show_faces {
+                    let faces = [
+                        [4, 5, 6, 7],  // Front
+                        [0, 3, 2, 1],  // Back
+                        [0, 1, 5, 4],  // Bottom
+                        [3, 7, 6, 2],  // Top
+                        [0, 4, 7, 3],  // Left
+                        [1, 2, 6, 5],  // Right
+                    ];
+
+                    for (face_idx, face) in faces.iter().enumerate() {
+                        let color = face_colors[face_idx];
+                        let face_color = egui::Color32::from_rgba_premultiplied(
+                            (color[0] * 180.0) as u8,
+                            (color[1] * 180.0) as u8,
+                            (color[2] * 180.0) as u8,
+                            200,
+                        );
+
+                        let points = vec![
+                            projected[face[0]],
+                            projected[face[1]],
+                            projected[face[2]],
+                            projected[face[3]],
+                        ];
+
+                        painter.add(egui::Shape::convex_polygon(
+                            points,
+                            face_color,
+                            egui::Stroke::NONE,
+                        ));
+                    }
                 }
 
-                // Front face
-                for i in 4..8 {
-                    painter.line_segment(
-                        [projected[i], projected[4 + (i - 4 + 1) % 4]],
-                        egui::Stroke::new(2.0, color),
-                    );
-                }
+                // Draw wireframe if enabled
+                if self.ui_state.show_wireframe {
+                    // Back face
+                    for i in 0..4 {
+                        painter.line_segment(
+                            [projected[i], projected[(i + 1) % 4]],
+                            egui::Stroke::new(1.5, wireframe_color),
+                        );
+                    }
 
-                // Connecting edges
-                for i in 0..4 {
-                    painter.line_segment(
-                        [projected[i], projected[i + 4]],
-                        egui::Stroke::new(1.0, color),
-                    );
+                    // Front face (thicker to show depth)
+                    for i in 4..8 {
+                        painter.line_segment(
+                            [projected[i], projected[4 + (i - 4 + 1) % 4]],
+                            egui::Stroke::new(2.5, wireframe_color),
+                        );
+                    }
+
+                    // Connecting edges
+                    for i in 0..4 {
+                        painter.line_segment(
+                            [projected[i], projected[i + 4]],
+                            egui::Stroke::new(1.5, wireframe_color),
+                        );
+                    }
                 }
             } else {
                 painter.text(
@@ -509,6 +699,7 @@ impl eframe::App for StepViewerApp {
         self.show_menu(ctx);
         self.show_entity_list(ctx);
         self.show_metadata(ctx);
+        self.show_colors(ctx);
         self.show_viewport(ctx);
         self.show_error(ctx);
     }
