@@ -154,7 +154,7 @@ impl StepViewerApp {
     }
 
     /// Load a STEP file from the given path
-    fn load_step_file(&mut self, path: PathBuf) {
+    pub fn load_file_on_startup(&mut self, path: PathBuf) {
         log::info!("Loading STEP file: {:?}", path);
 
         match Self::parse_step_file(&path) {
@@ -296,7 +296,7 @@ impl StepViewerApp {
                                 .add_filter("STEP files", &["stp", "step"])
                                 .pick_file()
                             {
-                                self.load_step_file(path);
+                                self.load_file_on_startup(path);
                             }
                             ui.close();
                         }
