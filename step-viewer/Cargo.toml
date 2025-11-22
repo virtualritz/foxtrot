@@ -1,0 +1,38 @@
+[package]
+name = "step-viewer"
+version = "0.1.0"
+authors = ["Matt Keeter <matt.j.keeter@gmail.com>"]
+edition = "2024"
+rust-version = "1.88"
+
+[dependencies]
+egui = "0.33.0"
+eframe = { version = "0.33.0", default-features = false, features = [
+    "accesskit",     # Make egui compatible with screen readers. NOTE: adds a lot of dependencies.
+    "default_fonts", # Embed the default egui fonts.
+    "glow",          # Use the glow rendering backend. Alternative: "wgpu".
+    "persistence",   # Enable restoring app state when restarting the app.
+    "wayland",       # To support Linux (and CI)
+    "x11",           # To support older Linux distributions (restores one of the default features)
+] }
+log = "0.4.27"
+
+# You only need serde if you want app persistence:
+serde = { version = "1.0.219", features = ["derive"] }
+
+# STEP file I/O
+ruststep = { version = "0.4", features = ["ap203"] }
+
+# File picker (native only)
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rfd = "0.15"
+env_logger = "0.11.8"
+
+[profile.release]
+opt-level = 2 # fast and small wasm
+
+# Optimize all dependencies even in debug builds:
+[profile.dev.package."*"]
+opt-level = 2
+
+
