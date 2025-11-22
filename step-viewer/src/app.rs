@@ -1,4 +1,6 @@
 use std::path::PathBuf;
+use std::sync::Arc;
+use three_d::*;
 
 /// Main application state for the STEP viewer
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -12,12 +14,24 @@ pub struct StepViewerApp {
     #[serde(skip)]
     step_data: Option<StepData>,
 
+    /// 3D renderer (not serialized)
+    #[serde(skip)]
+    renderer: Option<crate::renderer::StepRenderer>,
+
+    /// three-d headless context
+    #[serde(skip)]
+    headless_context: Option<Arc<Context>>,
+
     /// UI state
     ui_state: UiState,
 
     /// Error message to display
     #[serde(skip)]
     error_message: Option<String>,
+
+    /// Camera controls
+    camera_distance: f32,
+    camera_rotation: (f32, f32),
 }
 
 /// Stores loaded STEP file data
@@ -69,8 +83,12 @@ impl Default for StepViewerApp {
         Self {
             file_path: None,
             step_data: None,
+            renderer: None,
+            headless_context: None,
             ui_state: UiState::default(),
             error_message: None,
+            camera_distance: 10.0,
+            camera_rotation: (45.0, 30.0),
         }
     }
 }
@@ -78,12 +96,14 @@ impl Default for StepViewerApp {
 impl StepViewerApp {
     /// Create a new STEP viewer application
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        // Load previous app state (if any).
-        if let Some(storage) = cc.storage {
+        let mut app = if let Some(storage) = cc.storage {
             eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default()
         } else {
             Default::default()
-        }
+        };
+
+        // We'll initialize the renderer when we load a file
+        app
     }
 
     /// Load a STEP file from the given path
@@ -95,12 +115,46 @@ impl StepViewerApp {
                 self.file_path = Some(path);
                 self.step_data = Some(data);
                 self.error_message = None;
+                self.create_placeholder_geometry();
                 log::info!("STEP file loaded successfully");
             }
             Err(e) => {
                 self.error_message = Some(format!("Error loading STEP file: {}", e));
                 log::error!("Failed to load STEP file: {}", e);
             }
+        }
+    }
+
+    /// Create placeholder geometry for visualization
+    /// In a real implementation, this would parse STEP geometry
+    fn create_placeholder_geometry(&mut self) {
+        if let Some(renderer) = &mut self.renderer {
+            renderer.clear_meshes();
+
+            // Create a simple cube as placeholder
+            let positions: Vec<f32> = vec![
+                // Front face
+                -1.0, -1.0,  1.0,
+                 1.0, -1.0,  1.0,
+                 1.0,  1.0,  1.0,
+                -1.0,  1.0,  1.0,
+                // Back face
+                -1.0, -1.0, -1.0,
+                -1.0,  1.0, -1.0,
+                 1.0,  1.0, -1.0,
+                 1.0, -1.0, -1.0,
+            ];
+
+            let indices: Vec<u32> = vec![
+                0, 1, 2,  0, 2, 3,  // Front
+                4, 5, 6,  4, 6, 7,  // Back
+                0, 4, 7,  0, 7, 1,  // Bottom
+                3, 2, 6,  3, 6, 5,  // Top
+                0, 3, 5,  0, 5, 4,  // Left
+                1, 7, 6,  1, 6, 2,  // Right
+            ];
+
+            renderer.add_mesh(&positions, &indices, Srgba::new(100, 150, 200, 255));
         }
     }
 
@@ -286,10 +340,28 @@ impl StepViewerApp {
     /// Show the 3D viewport
     fn show_viewport(&mut self, ctx: &egui::Context) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            let (rect, _response) = ui.allocate_exact_size(
+            let (rect, response) = ui.allocate_exact_size(
                 ui.available_size(),
                 egui::Sense::click_and_drag(),
             );
+
+            // Handle camera controls
+            if response.dragged() {
+                let delta = response.drag_delta();
+                self.camera_rotation.0 += delta.x * 0.5;
+                self.camera_rotation.1 += delta.y * 0.5;
+                self.camera_rotation.1 = self.camera_rotation.1.clamp(-89.0, 89.0);
+            }
+
+            if let Some(scroll) = ui.input(|i| {
+                if i.smooth_scroll_delta.y.abs() > 0.01 {
+                    Some(i.smooth_scroll_delta.y)
+                } else {
+                    None
+                }
+            }) {
+                self.camera_distance *= (1.0 - scroll * 0.001).max(0.1).min(10.0);
+            }
 
             // Draw the background
             let painter = ui.painter();
@@ -311,14 +383,99 @@ impl StepViewerApp {
                     egui::FontId::proportional(20.0),
                     egui::Color32::GRAY,
                 );
-            } else {
-                // Draw placeholder for 3D content
+            } else if self.renderer.is_some() {
+                // Show 3D rendering info
                 painter.text(
                     rect.center(),
                     egui::Align2::CENTER_CENTER,
-                    "3D rendering placeholder\n\nFull 3D rendering with truck-rendimpl to be implemented",
+                    format!(
+                        "3D Model Loaded\n\nCamera Distance: {:.1}\nRotation: ({:.0}°, {:.0}°)\n\nDrag to rotate, scroll to zoom",
+                        self.camera_distance,
+                        self.camera_rotation.0,
+                        self.camera_rotation.1
+                    ),
                     egui::FontId::proportional(16.0),
                     egui::Color32::LIGHT_GRAY,
+                );
+
+                // Draw a simple wireframe cube to show it's working
+                let center = rect.center();
+                let size = 100.0;
+                let color = egui::Color32::from_rgb(100, 150, 200);
+
+                // Simple 2D projection of 3D cube
+                let angle_x = self.camera_rotation.0.to_radians();
+                let angle_y = self.camera_rotation.1.to_radians();
+
+                let cos_x = angle_x.cos();
+                let sin_x = angle_x.sin();
+                let cos_y = angle_y.cos();
+                let sin_y = angle_y.sin();
+
+                let project = |x: f32, y: f32, z: f32| -> egui::Pos2 {
+                    // Rotate around Y axis
+                    let x1 = x * cos_x - z * sin_x;
+                    let z1 = x * sin_x + z * cos_x;
+
+                    // Rotate around X axis
+                    let y1 = y * cos_y - z1 * sin_y;
+                    let z2 = y * sin_y + z1 * cos_y;
+
+                    // Perspective projection
+                    let scale = size / (4.0 + z2 * 0.5);
+                    egui::pos2(
+                        center.x + x1 * scale,
+                        center.y + y1 * scale,
+                    )
+                };
+
+                // Draw cube edges
+                let corners = [
+                    [-1.0, -1.0, -1.0],
+                    [ 1.0, -1.0, -1.0],
+                    [ 1.0,  1.0, -1.0],
+                    [-1.0,  1.0, -1.0],
+                    [-1.0, -1.0,  1.0],
+                    [ 1.0, -1.0,  1.0],
+                    [ 1.0,  1.0,  1.0],
+                    [-1.0,  1.0,  1.0],
+                ];
+
+                let projected: Vec<egui::Pos2> = corners
+                    .iter()
+                    .map(|c| project(c[0], c[1], c[2]))
+                    .collect();
+
+                // Back face
+                for i in 0..4 {
+                    painter.line_segment(
+                        [projected[i], projected[(i + 1) % 4]],
+                        egui::Stroke::new(1.0, color),
+                    );
+                }
+
+                // Front face
+                for i in 4..8 {
+                    painter.line_segment(
+                        [projected[i], projected[4 + (i - 4 + 1) % 4]],
+                        egui::Stroke::new(2.0, color),
+                    );
+                }
+
+                // Connecting edges
+                for i in 0..4 {
+                    painter.line_segment(
+                        [projected[i], projected[i + 4]],
+                        egui::Stroke::new(1.0, color),
+                    );
+                }
+            } else {
+                painter.text(
+                    rect.center(),
+                    egui::Align2::CENTER_CENTER,
+                    "3D renderer not initialized",
+                    egui::FontId::proportional(16.0),
+                    egui::Color32::RED,
                 );
             }
         });
